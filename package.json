@@ -1,0 +1,15 @@
+{
+  "name": "vexil",
+  "version": "1.0.0",
+  "description": "> **Vexil** — A high-performance, open-source feature flag and remote configuration service with local evaluation and deterministic rollouts.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "workspaces": [
+    "services/*"
+  ]
+}
