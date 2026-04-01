@@ -1,8 +1,24 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertCircle, Loader2, ToggleLeft, ToggleRight, ChevronDown, ChevronUp, Save } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  AlertCircle, 
+  Loader2, 
+  ToggleLeft, 
+  ToggleRight, 
+  ChevronDown, 
+  ChevronUp, 
+  Save 
+} from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { cn } from '../../utils/cn';
+import { StrategyConfigurator, StrategyType } from '../../components/StrategyConfigurator';
+import { RolloutForm } from '../../components/StrategyConfigurator/forms/RolloutForm';
+import { TargetedRolloutForm } from '../../components/StrategyConfigurator/forms/TargetedRolloutForm';
+import { UserTargetingForm } from '../../components/StrategyConfigurator/forms/UserTargetingForm';
+import { AbTestForm } from '../../components/StrategyConfigurator/forms/AbTestForm';
+import { TimeWindowForm } from '../../components/StrategyConfigurator/forms/TimeWindowForm';
+import { PrerequisiteForm } from '../../components/StrategyConfigurator/forms/PrerequisiteForm';
 
 interface Flag {
   id: string;
@@ -20,12 +36,15 @@ interface Environment {
 interface FlagConfig {
   id?: string;
   isEnabled: boolean;
-  rules?: any;
+  strategyType: StrategyType;
+  strategyConfig: Record<string, any>;
+  rules?: any; // legacy
 }
 
 interface ConfigState {
   isEnabled: boolean;
-  rules: string;
+  strategyType: StrategyType;
+  strategyConfig: Record<string, any>;
   saving: boolean;
   saved: boolean;
   expanded: boolean;
@@ -66,7 +85,6 @@ export const FlagConfigurePage = () => {
       const envs: Environment[] = envRes.data;
       setEnvironments(envs);
 
-      // For each environment, try to load the flag config
       const configEntries = await Promise.all(
         envs.map(async (env) => {
           try {
@@ -76,7 +94,8 @@ export const FlagConfigurePage = () => {
               env.id,
               {
                 isEnabled: cfg.isEnabled ?? false,
-                rules: cfg.rules ? JSON.stringify(cfg.rules, null, 2) : '{}',
+                strategyType: (cfg.strategyType as StrategyType) || 'boolean',
+                strategyConfig: cfg.strategyConfig || {},
                 saving: false,
                 saved: false,
                 expanded: false,
@@ -84,12 +103,12 @@ export const FlagConfigurePage = () => {
               } as ConfigState,
             ];
           } catch {
-            // Config doesn't exist yet — default state
             return [
               env.id,
               {
                 isEnabled: false,
-                rules: '{}',
+                strategyType: 'boolean',
+                strategyConfig: {},
                 saving: false,
                 saved: false,
                 expanded: false,
@@ -118,31 +137,103 @@ export const FlagConfigurePage = () => {
     }));
   };
 
+  const updateStrategyConfig = (envId: string, updates: Record<string, any>) => {
+    setConfigMap((prev) => ({
+      ...prev,
+      [envId]: {
+        ...prev[envId],
+        strategyConfig: { ...prev[envId].strategyConfig, ...updates },
+        saved: false
+      },
+    }));
+  };
+
   const handleToggle = (envId: string) => {
     updateConfigField(envId, { isEnabled: !configMap[envId].isEnabled, saved: false });
   };
 
   const handleSave = async (envId: string) => {
     const cfg = configMap[envId];
-    let parsedRules: any = {};
-    try {
-      parsedRules = JSON.parse(cfg.rules || '{}');
-    } catch {
-      alert('Invalid JSON in rules editor. Please fix before saving.');
-      return;
-    }
-
     updateConfigField(envId, { saving: true });
     try {
       await apiClient.put(`/projects/${projectId}/environments/${envId}/flags/${flagId}`, {
         isEnabled: cfg.isEnabled,
-        rules: parsedRules,
+        strategyType: cfg.strategyType,
+        strategyConfig: cfg.strategyConfig,
       });
       updateConfigField(envId, { saving: false, saved: true });
       setTimeout(() => updateConfigField(envId, { saved: false }), 2500);
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to save configuration.');
       updateConfigField(envId, { saving: false });
+    }
+  };
+
+  const renderStrategyForm = (envId: string) => {
+    const cfg = configMap[envId];
+    if (!cfg) return null;
+
+    switch (cfg.strategyType) {
+      case 'rollout':
+        return (
+          <RolloutForm 
+            percentage={cfg.strategyConfig.percentage ?? 0}
+            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'targeted_rollout':
+      case 'attribute_matching':
+        return (
+          <TargetedRolloutForm
+            percentage={cfg.strategyType === 'attribute_matching' ? 100 : (cfg.strategyConfig.percentage ?? 0)}
+            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
+            rules={cfg.strategyConfig.rules ?? []}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'user_targeting':
+        return (
+          <UserTargetingForm
+            userIds={cfg.strategyConfig.userIds ?? []}
+            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
+            fallthrough={cfg.strategyConfig.fallthrough ?? false}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'ab_test':
+        return (
+          <AbTestForm
+            variants={cfg.strategyConfig.variants ?? []}
+            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'time_window':
+        return (
+          <TimeWindowForm
+            startDate={cfg.strategyConfig.startDate ?? new Date().toISOString()}
+            endDate={cfg.strategyConfig.endDate ?? new Date().toISOString()}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'prerequisite':
+        return (
+          <PrerequisiteForm
+            flagKey={cfg.strategyConfig.flagKey ?? ''}
+            expectedValue={cfg.strategyConfig.expectedValue ?? true}
+            onChange={(updates) => updateStrategyConfig(envId, updates)}
+          />
+        );
+      case 'boolean':
+      default:
+        return (
+          <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 text-center">
+            <p className="text-xs text-slate-500 font-medium">
+              Standard Kill Switch enabled. Flag will return <strong>{cfg.isEnabled ? 'true' : 'false'}</strong> globally in this environment.
+            </p>
+          </div>
+        );
     }
   };
 
@@ -163,7 +254,7 @@ export const FlagConfigurePage = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col h-full">
+    <div className="max-w-5xl mx-auto flex flex-col h-full">
       {/* Back */}
       <button
         onClick={() => navigate(`/projects/${projectId}/flags`)}
@@ -182,17 +273,17 @@ export const FlagConfigurePage = () => {
           </span>
         </div>
         {flag?.description && <p className="text-slate-500 mt-1">{flag.description}</p>}
-        <p className="text-sm text-slate-400 mt-1">Toggle this flag on/off per environment and optionally configure targeting rules.</p>
+        <p className="text-sm text-slate-400 mt-1">Configure evaluation strategies per environment.</p>
       </div>
 
       {environments.length === 0 ? (
         <div className="flex flex-col items-center justify-center bg-white/60 rounded-2xl border border-slate-100 py-16 text-slate-400">
           <ToggleLeft className="w-14 h-14 mb-4 opacity-40" />
           <p className="font-semibold text-lg">No Environments</p>
-          <p className="text-sm mt-1">Create environments first to configure this flag.</p>
+          <p className="text-sm mt-1">Create environments first to configure strategies.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 overflow-y-auto">
+        <div className="flex flex-col gap-6 overflow-y-auto pb-10">
           {environments.map((env) => {
             const cfg = configMap[env.id];
             if (!cfg) return null;
@@ -202,83 +293,82 @@ export const FlagConfigurePage = () => {
               <div
                 key={env.id}
                 className={cn(
-                  'bg-white border rounded-2xl transition-all duration-200 overflow-hidden',
-                  cfg.isEnabled ? 'border-primary-200 shadow-md shadow-primary-50' : 'border-slate-200'
+                  'bg-white border rounded-3xl transition-all duration-300 overflow-hidden',
+                  cfg.expanded ? 'border-primary-200 ring-4 ring-primary-50/50' : 'border-slate-200 hover:border-slate-300 shadow-sm'
                 )}
               >
                 {/* Card Header */}
-                <div className="flex items-center gap-4 p-5">
+                <div className="flex items-center gap-4 p-6">
                   {/* Status dot */}
-                  <div className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', cfg.isEnabled ? 'bg-green-500 shadow-sm shadow-green-300' : 'bg-slate-300')} />
+                  <div className={cn('w-3 h-3 rounded-full flex-shrink-0 transition-all duration-300', cfg.isEnabled ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-slate-300')} />
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <span className="font-bold text-slate-900">{env.name}</span>
-                      <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', envStyle.badge)}>
-                        {env.name.toUpperCase()}
+                      <span className={cn('text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider', envStyle.badge)}>
+                        {env.name}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 font-mono truncate mt-0.5">{env.apiKey}</p>
+                    <p className="text-[11px] text-slate-400 font-mono truncate mt-1">{env.apiKey}</p>
                   </div>
 
-                  {/* Toggle */}
-                  <button
-                    onClick={() => handleToggle(env.id)}
-                    className="focus:outline-none transition-all"
-                    title={cfg.isEnabled ? 'Disable flag' : 'Enable flag'}
-                  >
-                    {cfg.isEnabled ? (
-                      <ToggleRight className="w-10 h-10 text-primary-600 hover:text-primary-700 transition-colors" />
-                    ) : (
-                      <ToggleLeft className="w-10 h-10 text-slate-300 hover:text-slate-400 transition-colors" />
-                    )}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {/* Toggle */}
+                    <button
+                      onClick={() => handleToggle(env.id)}
+                      className="focus:outline-none transition-all mr-2"
+                      title={cfg.isEnabled ? 'Disable flag' : 'Enable flag'}
+                    >
+                      {cfg.isEnabled ? (
+                        <ToggleRight className="w-10 h-10 text-primary-600 hover:text-primary-700 transition-colors" />
+                      ) : (
+                        <ToggleLeft className="w-10 h-10 text-slate-300 hover:text-slate-400 transition-colors" />
+                      )}
+                    </button>
 
-                  {/* Rules expander */}
-                  <button
-                    onClick={() => updateConfigField(env.id, { expanded: !cfg.expanded })}
-                    className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                    title="Toggle rules editor"
-                  >
-                    {cfg.expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  </button>
+                    {/* Rules expander */}
+                    <button
+                      onClick={() => updateConfigField(env.id, { expanded: !cfg.expanded })}
+                      className={cn(
+                        "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all",
+                        cfg.expanded ? "bg-slate-100 text-slate-900" : "bg-white text-slate-500 border border-slate-200 hover:bg-slate-50"
+                      )}
+                    >
+                      {cfg.expanded ? 'Collapse Config' : 'Configure Strategy'}
+                      {cfg.expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    </button>
 
-                  {/* Save button */}
-                  <button
-                    onClick={() => handleSave(env.id)}
-                    disabled={cfg.saving}
-                    className={cn(
-                      'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition-all',
-                      cfg.saved
-                        ? 'bg-green-500 text-white'
-                        : 'bg-primary-600 text-white hover:bg-primary-700 shadow-sm disabled:opacity-60'
+                    {/* Save button */}
+                    {cfg.expanded && (
+                      <button
+                        onClick={() => handleSave(env.id)}
+                        disabled={cfg.saving}
+                        className={cn(
+                          'flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all',
+                          cfg.saved
+                            ? 'bg-green-500 text-white'
+                            : 'bg-primary-600 text-white hover:bg-primary-700 shadow-lg shadow-primary-200 disabled:opacity-60'
+                        )}
+                      >
+                        {cfg.saving ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5" />
+                        )}
+                        {cfg.saved ? 'Saved!' : cfg.saving ? 'Saving...' : 'Save Changes'}
+                      </button>
                     )}
-                  >
-                    {cfg.saving ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Save className="w-4 h-4" />
-                    )}
-                    {cfg.saved ? 'Saved!' : cfg.saving ? 'Saving...' : 'Save'}
-                  </button>
+                  </div>
                 </div>
 
-                {/* Rules Editor (Expandable) */}
+                {/* Strategy Configurator (Expandable) */}
                 {cfg.expanded && (
-                  <div className="border-t border-slate-100 p-5 bg-slate-50">
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                      Targeting Rules (JSON)
-                    </label>
-                    <textarea
-                      rows={8}
-                      value={cfg.rules}
-                      onChange={(e) => updateConfigField(env.id, { rules: e.target.value, saved: false })}
-                      className="w-full font-mono text-xs bg-slate-900 text-green-400 border border-slate-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary-500 resize-y leading-relaxed"
-                      spellCheck={false}
+                  <div className="border-t border-slate-100 p-8 bg-slate-50/50">
+                    <StrategyConfigurator 
+                      strategyType={cfg.strategyType}
+                      onStrategyChange={(type) => updateConfigField(env.id, { strategyType: type, saved: false })}
+                      renderForm={() => renderStrategyForm(env.id)}
                     />
-                    <p className="text-xs text-slate-400 mt-2">
-                      Define targeting rules as a JSON object. Saved with the flag toggle state above.
-                    </p>
                   </div>
                 )}
               </div>

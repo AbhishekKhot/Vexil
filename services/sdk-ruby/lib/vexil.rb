@@ -54,6 +54,10 @@ module Vexil
       flag['value']
     end
 
+    def details(key)
+      @flags[key] || nil
+    end
+
     # Simple tracking of evaluation events for analytics
     def track_events(events)
       uri = URI.parse("#{@base_url}/v1/events")

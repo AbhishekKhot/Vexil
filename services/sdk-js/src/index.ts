@@ -8,6 +8,8 @@ export interface VexilConfig {
 export interface FlagResult {
   value: any;
   type: string;
+  variant?: string;
+  reason?: string;
 }
 
 export interface FlagMap {
@@ -63,6 +65,14 @@ export class VexilClient {
     const flag = this.flags[key];
     if (!flag) return null;
     return flag.value as T;
+  }
+
+  /**
+   * Gets the full evaluation details of a flag.
+   * Returns null if missing.
+   */
+  getDetails(key: string): FlagResult | null {
+    return this.flags[key] || null;
   }
 
   /**

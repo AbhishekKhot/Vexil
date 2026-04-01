@@ -3,104 +3,98 @@ import Redis from "ioredis";
 import { Environment } from "../entities/Environment";
 import { FlagEnvironmentConfig } from "../entities/FlagEnvironmentConfig";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
-import { evaluateRules } from "../utils/ruleEngine";
+import { EvaluationEngine, FlagEvaluationOutput } from "../evaluation/EvaluationEngine";
 
 export class EvaluationService {
+    private readonly engine: EvaluationEngine;
+
     constructor(
-        private environmentRepo: Repository<Environment>,
-        private configRepo: Repository<FlagEnvironmentConfig>,
-        private eventRepo: Repository<EvaluationEvent>,
-        private redisClient: Redis
-    ) {}
+        private readonly environmentRepo: Repository<Environment>,
+        private readonly configRepo: Repository<FlagEnvironmentConfig>,
+        private readonly eventRepo: Repository<EvaluationEvent>,
+        private readonly redisClient: Redis
+    ) {
+        // Engine is constructed once per service instance — it holds only repo refs
+        this.engine = new EvaluationEngine(configRepo);
+    }
 
     async getEnvironmentByApiKey(apiKey: string): Promise<Environment | null> {
         return await this.environmentRepo.findOne({
             where: { apiKey },
-            relations: ["project"]
+            relations: ["project"],
         });
     }
 
+    // ─── Redis helpers (graceful degradation) ───────────────────────────────
+
     private async redisGet(key: string): Promise<string | null> {
-        try {
-            return await this.redisClient.get(key);
-        } catch {
-            return null; // Redis unavailable — fall through to DB
-        }
+        try { return await this.redisClient.get(key); }
+        catch { return null; }
     }
 
     private async redisSet(key: string, value: string, ttl: number): Promise<void> {
-        try {
-            await this.redisClient.set(key, value, "EX", ttl);
-        } catch {
-            // Redis unavailable — skip caching, not fatal
-        }
+        try { await this.redisClient.set(key, value, "EX", ttl); }
+        catch { /* Cache unavailable — non-fatal */ }
     }
 
-    async evaluateFlags(apiKey: string, context?: Record<string, any>): Promise<Record<string, any>> {
-        // 1. Validate API key & fetch environment
+    async invalidateEnvironmentCache(apiKey: string): Promise<void> {
+        try { await this.redisClient.del(`env_configs:${apiKey}`); }
+        catch { /* Ignore */ }
+    }
+
+    // ─── Main evaluation entry point ─────────────────────────────────────────
+
+    async evaluateFlags(
+        apiKey: string,
+        context?: Record<string, unknown>
+    ): Promise<Record<string, FlagEvaluationOutput>> {
+        // 1. Validate API key
         const environment = await this.getEnvironmentByApiKey(apiKey);
         if (!environment) throw new Error("Invalid API Key");
 
-        // 2. Fetch raw FlagEnvironmentConfigs — try cache first
-        const cacheKey = `env_configs:${apiKey}`;
+        // 2. Load FlagEnvironmentConfigs — try Redis cache first
+        const cacheKey = `env_configs:${environment.id}`;
         let configs: FlagEnvironmentConfig[];
 
         const cached = await this.redisGet(cacheKey);
         if (cached) {
-            configs = JSON.parse(cached);
+            // Cached as raw JSON; re-instantiate relations manually
+            configs = JSON.parse(cached) as FlagEnvironmentConfig[];
         } else {
             configs = await this.configRepo.find({
                 where: { environment: { id: environment.id } },
-                relations: ["flag"]
+                relations: ["flag", "environment"],
             });
-            // Cache raw configs for 60s (context-independent, rules evaluated in-memory)
-            await this.redisSet(cacheKey, JSON.stringify(configs), 60);
+            // Cache raw configs for 30s (context-independent; rules run in-memory)
+            await this.redisSet(cacheKey, JSON.stringify(configs), 30);
         }
 
-        // 3. Evaluate each flag — apply rule engine when context is provided
-        const evaluated: Record<string, any> = {};
-        const events: Partial<EvaluationEvent>[] = [];
+        // 3. Run the evaluation engine
+        const ctx = context ?? {};
+        const { flags } = await this.engine.evaluate(configs, ctx);
 
-        for (const config of configs) {
-            let value: boolean = config.isEnabled;
-            const ctx = context || {};
+        // 4. Log evaluation events asynchronously — fire-and-forget, never blocks
+        this.logEvents(environment.id, flags, ctx).catch(() => {/* silently ignore */});
 
-            // Apply rules only when flag is ON (rules refine who gets it)
-            if (config.isEnabled && config.rules) {
-                const ruleResult = evaluateRules(config.rules, ctx);
-                if (ruleResult !== null) {
-                    value = ruleResult; // Override: rules determine final result
-                }
-            }
-
-            evaluated[config.flag.key] = {
-                value,
-                type: config.flag.type
-            };
-
-            events.push({
-                environmentId: environment.id,
-                flagKey: config.flag.key,
-                result: value,
-                context: context ? context : undefined
-            });
-        }
-
-        // 4. Log evaluation events asynchronously (fire-and-forget, non-blocking)
-        if (events.length > 0) {
-            this.eventRepo.insert(events).catch(() => {
-                // Silently fail — never block evaluation for analytics
-            });
-        }
-
-        return evaluated;
+        return flags;
     }
 
-    async invalidateEnvironmentCache(apiKey: string): Promise<void> {
-        try {
-            await this.redisClient.del(`env_configs:${apiKey}`);
-        } catch {
-            // Ignore
+    // ─── Analytics event logging ─────────────────────────────────────────────
+
+    private async logEvents(
+        environmentId: string,
+        flags: Record<string, FlagEvaluationOutput>,
+        context: Record<string, unknown>
+    ): Promise<void> {
+        const events = Object.entries(flags).map(([flagKey, result]) => ({
+            environmentId,
+            flagKey,
+            result: Boolean(result.value),
+            context: Object.keys(context).length > 0 ? context : undefined,
+        }));
+
+        if (events.length > 0) {
+            await this.eventRepo.insert(events as any);
         }
     }
 }
