@@ -11,4 +11,5 @@ export default async function projectRoutes(fastify: FastifyInstance) {
     fastify.post("/", projectController.createProject);
     fastify.get("/", projectController.listProjects);
     fastify.get("/:id", projectController.getProject);
+    fastify.delete("/:id", projectController.deleteProject);
 }

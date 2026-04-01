@@ -41,4 +41,19 @@ export class EnvironmentController {
             return reply.code(500).send({ error: "Internal Server Error" });
         }
     };
+
+    deleteEnvironment = async (
+        request: FastifyRequest<{ Params: { id: string } }>, 
+        reply: FastifyReply
+    ) => {
+        try {
+            const success = await this.environmentService.deleteEnvironment(request.params.id);
+            if (!success) {
+                return reply.code(404).send({ error: "Environment not found" });
+            }
+            return reply.code(204).send();
+        } catch (error: any) {
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
+    };
 }

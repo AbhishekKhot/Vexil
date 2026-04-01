@@ -16,4 +16,5 @@ export default async function flagRoutes(fastify: FastifyInstance) {
     fastify.post("/:projectId/flags", flagController.createFlag);
     fastify.get("/:projectId/flags", flagController.listFlags);
     fastify.get("/:projectId/flags/:flagId", flagController.getFlag);
+    fastify.delete("/flags/:id", flagController.deleteFlag);
 }

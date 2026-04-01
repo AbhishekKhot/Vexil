@@ -6,12 +6,25 @@ import { Project } from "../entities/Project";
 export class ProjectController {
     constructor(private readonly projectService: ProjectService) {}
 
-    createProject = async (request: FastifyRequest<{ Body: { name: string } }>, reply: FastifyReply) => {
+    createProject = async (request: FastifyRequest<{ Body: { name: string, description?: string } }>, reply: FastifyReply) => {
         try {
-            const project = await this.projectService.createProject(request.body?.name);
+            const project = await this.projectService.createProject(request.body?.name, request.body?.description);
             reply.code(201).send(project);
         } catch (error: any) {
             reply.code(400).send({ error: error.message });
+        }
+    };
+
+    deleteProject = async (request: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+        try {
+            const success = await this.projectService.deleteProject(request.params.id);
+            if (!success) {
+                reply.code(404).send({ error: "Project not found" });
+                return;
+            }
+            reply.code(204).send();
+        } catch (error: any) {
+            reply.code(500).send({ error: "Internal server error" });
         }
     };
 

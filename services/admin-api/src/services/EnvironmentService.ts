@@ -28,6 +28,11 @@ export class EnvironmentService {
         });
     }
 
+    async deleteEnvironment(id: string): Promise<boolean> {
+        const result = await this.environmentRepository.delete(id);
+        return (result.affected || 0) > 0;
+    }
+
     async getEnvironment(id: string): Promise<Environment | null> {
         return await this.environmentRepository.findOne({
             where: { id },

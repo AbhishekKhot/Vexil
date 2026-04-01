@@ -28,4 +28,20 @@ export class AnalyticsController {
             return reply.code(400).send({ error: error.message });
         }
     };
+
+    getAnalytics = async (
+        request: FastifyRequest<{ Params: { projectId: string }, Querystring: { environmentId?: string, flagKey?: string } }>, 
+        reply: FastifyReply
+    ) => {
+        try {
+            const stats = await this.analyticsService.getAnalytics(
+                request.params.projectId,
+                request.query.environmentId,
+                request.query.flagKey
+            );
+            return reply.code(200).send(stats);
+        } catch (error: any) {
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
+    };
 }

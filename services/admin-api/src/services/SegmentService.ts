@@ -36,4 +36,9 @@ export class SegmentService {
             relations: ["project"]
         });
     }
+
+    async deleteSegment(id: string): Promise<boolean> {
+        const result = await this.segmentRepo.delete(id);
+        return (result.affected || 0) > 0;
+    }
 }

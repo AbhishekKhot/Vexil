@@ -62,4 +62,19 @@ export class SegmentController {
             return reply.code(500).send({ error: "Internal Server Error" });
         }
     };
+
+    deleteSegment = async (
+        request: FastifyRequest<{ Params: { id: string } }>, 
+        reply: FastifyReply
+    ) => {
+        try {
+            const success = await this.segmentService.deleteSegment(request.params.id);
+            if (!success) {
+                return reply.code(404).send({ error: "Segment not found" });
+            }
+            return reply.code(204).send();
+        } catch (error: any) {
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
+    };
 }
