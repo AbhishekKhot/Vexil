@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, LayoutGrid, Search, AlertCircle, Folder } from 'lucide-react';
+import { Plus, LayoutGrid, Search, AlertCircle, Folder, Trash2 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { Link } from 'react-router-dom';
 
@@ -30,7 +30,7 @@ export const ProjectsDashboard = () => {
       setLoading(true);
       const res = await apiClient.get('/projects');
       setProjects(res.data);
-    } catch (err) {
+    } catch {
       setError('Failed to load projects. Ensure backend API is running.');
     } finally {
       setLoading(false);
@@ -43,14 +43,25 @@ export const ProjectsDashboard = () => {
     try {
       setCreating(true);
       const res = await apiClient.post('/projects', { name: newProjectName, description: newProjectDesc });
-      setProjects([...projects, res.data]);
+      setProjects((prev) => [...prev, res.data]);
       setShowModal(false);
       setNewProjectName('');
       setNewProjectDesc('');
-    } catch (err: unknown) {
-      alert((err as any)?.response?.data?.error || 'Failed to create project');
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to create project');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleDeleteProject = async (e: React.MouseEvent, id: string, name: string) => {
+    e.preventDefault();
+    if (!window.confirm(`Are you sure you want to delete the project "${name}"? All environments, flags, and segments within it will be deleted. This cannot be undone.`)) return;
+    try {
+      await apiClient.delete(`/projects/${id}`);
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to delete project');
     }
   };
 
@@ -114,7 +125,16 @@ export const ProjectsDashboard = () => {
                 className="group relative bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-xl hover:border-primary-300 transition-all block duration-300 cursor-pointer overflow-hidden hover:-translate-y-1"
               >
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary-400 to-primary-600 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
-                <h3 className="text-xl font-bold text-slate-900 group-hover:text-primary-600 transition-colors">{project.name}</h3>
+                <div className="flex justify-between items-start">
+                  <h3 className="text-xl font-bold text-slate-900 group-hover:text-primary-600 transition-colors">{project.name}</h3>
+                  <button
+                    onClick={(e) => handleDeleteProject(e, project.id, project.name)}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                    title="Delete Project"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
                 <p className="text-slate-500 text-sm mt-3 line-clamp-2 leading-relaxed">
                   {project.description || 'No description provided. Click to manage environments, flags, and segments.'}
                 </p>

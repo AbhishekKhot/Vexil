@@ -62,4 +62,19 @@ export class FlagController {
             return reply.code(500).send({ error: "Internal Server Error" });
         }
     };
+
+    deleteFlag = async (
+        request: FastifyRequest<{ Params: { id: string } }>, 
+        reply: FastifyReply
+    ) => {
+        try {
+            const success = await this.flagService.deleteFlag(request.params.id);
+            if (!success) {
+                return reply.code(404).send({ error: "Flag not found" });
+            }
+            return reply.code(204).send();
+        } catch (error: any) {
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
+    };
 }

@@ -5,12 +5,17 @@ import { Environment } from "./entities/Environment";
 import { Flag } from "./entities/Flag";
 import { FlagEnvironmentConfig } from "./entities/FlagEnvironmentConfig";
 import { Segment } from "./entities/Segment";
+import { EvaluationEvent } from "./entities/EvaluationEvent";
 
 const start = async () => {
     const dataSource = new DataSource({
-        type: "sqlite",
-        database: "vexil.sqlite",
-        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment],
+        type: "postgres",
+        host: "localhost",
+        port: 5432,
+        username: "postgres",
+        password: "postgres",
+        database: "vexil",
+        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, EvaluationEvent],
         synchronize: true, // Auto-create schema for dev
         logging: false,
     });

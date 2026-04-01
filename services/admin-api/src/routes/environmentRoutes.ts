@@ -15,4 +15,5 @@ export default async function environmentRoutes(fastify: FastifyInstance) {
 
     fastify.post("/:projectId/environments", environmentController.createEnvironment);
     fastify.get("/:projectId/environments", environmentController.listEnvironments);
+    fastify.delete("/environments/:id", environmentController.deleteEnvironment);
 }

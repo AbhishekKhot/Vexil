@@ -16,4 +16,5 @@ export default async function segmentRoutes(fastify: FastifyInstance) {
     fastify.post("/:projectId/segments", segmentController.createSegment);
     fastify.get("/:projectId/segments", segmentController.listSegments);
     fastify.get("/:projectId/segments/:segmentId", segmentController.getSegment);
+    fastify.delete("/segments/:id", segmentController.deleteSegment);
 }

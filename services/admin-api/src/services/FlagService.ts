@@ -42,4 +42,9 @@ export class FlagService {
             relations: ["project"]
         });
     }
+
+    async deleteFlag(id: string): Promise<boolean> {
+        const result = await this.flagRepository.delete(id);
+        return (result.affected || 0) > 0;
+    }
 }

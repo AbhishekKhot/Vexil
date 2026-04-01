@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Settings, Layers, Folder } from 'lucide-react';
+import { Settings, Folder } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 const navItems = [
   { icon: Folder, label: 'Projects', to: '/projects' },
-  { icon: Layers, label: 'Segments (Global)', to: '/segments' },
-  { icon: Settings, label: 'System Settings', to: '/settings' },
+  { icon: Settings, label: 'Settings', to: '/settings' },
 ];
 
 export const Sidebar = () => {
