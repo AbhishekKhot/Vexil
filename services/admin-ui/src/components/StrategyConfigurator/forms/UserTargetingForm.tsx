@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserCheck, Hash, ToggleLeft, ToggleRight } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+
 
 interface UserTargetingFormProps {
   userIds: string[];

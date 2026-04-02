@@ -31,7 +31,16 @@ export class TimeWindowStrategy implements IEvaluationStrategy {
     }
 
     evaluate(_context: Record<string, unknown>): EvaluationResult {
-        const now = new Date();
+        let now = new Date();
+        if (this.config.timezone) {
+            try {
+                const tzNowStr = now.toLocaleString("en-US", { timeZone: this.config.timezone, hour12: false });
+                now = new Date(tzNowStr);
+            } catch (e) {
+                // Ignore timezone conversion errors and fallback to server time
+            }
+        }
+        
         const active = now >= this.start && now <= this.end;
         return {
             value: active,

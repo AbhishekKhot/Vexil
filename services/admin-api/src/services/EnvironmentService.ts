@@ -2,9 +2,13 @@ import { Repository } from "typeorm";
 import { Environment } from "../entities/Environment";
 import { Project } from "../entities/Project";
 import crypto from "crypto";
+import Redis from "ioredis";
 
 export class EnvironmentService {
-    constructor(private environmentRepository: Repository<Environment>) {}
+    constructor(
+        private environmentRepository: Repository<Environment>,
+        private redisClient: Redis
+    ) {}
 
     async createEnvironment(project: Project, name: string): Promise<Environment> {
         if (!name || name.trim().length < 2) {
@@ -29,7 +33,20 @@ export class EnvironmentService {
     }
 
     async deleteEnvironment(id: string): Promise<boolean> {
+        const env = await this.getEnvironment(id);
+        if (!env) return false;
+
         const result = await this.environmentRepository.delete(id);
+        
+        if ((result.affected || 0) > 0 && this.redisClient) {
+            try {
+                await this.redisClient.del(`env_apikey:${env.apiKey}`);
+                await this.redisClient.del(`env_configs:${id}`);
+            } catch (e) {
+                console.error("Failed to invalidate cache", e);
+            }
+        }
+
         return (result.affected || 0) > 0;
     }
 

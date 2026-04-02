@@ -19,10 +19,25 @@ export class EvaluationService {
     }
 
     async getEnvironmentByApiKey(apiKey: string): Promise<Environment | null> {
-        return await this.environmentRepo.findOne({
+        const cacheKey = `env_apikey:${apiKey}`;
+        const cached = await this.redisGet(cacheKey);
+        
+        if (cached) {
+            console.log(`[CACHE HIT] Environment loaded via redis: ${cacheKey}`);
+            return JSON.parse(cached) as Environment;
+        }
+
+        console.log(`[CACHE MISS] Querying postgres for ${cacheKey}`);
+        const env = await this.environmentRepo.findOne({
             where: { apiKey },
             relations: ["project"],
         });
+
+        if (env) {
+            await this.redisSet(cacheKey, JSON.stringify(env), 300); // 5 minutes TTL
+        }
+
+        return env;
     }
 
     // ─── Redis helpers (graceful degradation) ───────────────────────────────
@@ -37,8 +52,8 @@ export class EvaluationService {
         catch { /* Cache unavailable — non-fatal */ }
     }
 
-    async invalidateEnvironmentCache(apiKey: string): Promise<void> {
-        try { await this.redisClient.del(`env_configs:${apiKey}`); }
+    async invalidateEnvironmentCache(environmentId: string): Promise<void> {
+        try { await this.redisClient.del(`env_configs:${environmentId}`); }
         catch { /* Ignore */ }
     }
 
@@ -58,9 +73,11 @@ export class EvaluationService {
 
         const cached = await this.redisGet(cacheKey);
         if (cached) {
+            console.log(`[CACHE HIT] Configurations loaded via redis: ${cacheKey}`);
             // Cached as raw JSON; re-instantiate relations manually
             configs = JSON.parse(cached) as FlagEnvironmentConfig[];
         } else {
+            console.log(`[CACHE MISS] Querying postgres for ${cacheKey}`);
             configs = await this.configRepo.find({
                 where: { environment: { id: environment.id } },
                 relations: ["flag", "environment"],

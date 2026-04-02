@@ -96,6 +96,7 @@ export interface TimeWindowConfig {
     strategyType: "time_window";
     startDate: string;       // ISO 8601 UTC string, e.g., "2024-01-15T09:00:00Z"
     endDate:   string;       // ISO 8601 UTC string
+    timezone?: string;       // Optional IANA timezone string e.g. "America/New_York"
 }
 
 /**

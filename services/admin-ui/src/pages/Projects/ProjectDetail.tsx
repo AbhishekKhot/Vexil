@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, Flag, Users, AlertCircle, Loader2, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Server, Flag, Users, AlertCircle, Loader2, BarChart3, Activity } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { cn } from '../../utils/cn';
 
@@ -16,6 +16,7 @@ const tabs = [
   { label: 'Flags', icon: Flag, to: 'flags' },
   { label: 'Segments', icon: Users, to: 'segments' },
   { label: 'Analytics', icon: BarChart3, to: 'analytics' },
+  { label: 'Activity', icon: Activity, to: 'activity' },
 ];
 
 export const ProjectDetail = () => {

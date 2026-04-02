@@ -130,6 +130,16 @@ export class StrategyFactory {
                 if (typeof config.startDate !== "string" || typeof config.endDate !== "string") {
                     throw new StrategyValidationError("time_window: startDate and endDate are required strings");
                 }
+                if (config.timezone !== undefined) {
+                    if (typeof config.timezone !== "string") {
+                        throw new StrategyValidationError("time_window: timezone must be a string");
+                    }
+                    try {
+                        Intl.DateTimeFormat(undefined, { timeZone: config.timezone });
+                    } catch (e) {
+                        throw new StrategyValidationError(`time_window: invalid timezone "${config.timezone}"`);
+                    }
+                }
                 break;
             case "prerequisite":
                 if (typeof config.flagKey !== "string") {

@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { cn } from '../../utils/cn';
-import { StrategyConfigurator, StrategyType } from '../../components/StrategyConfigurator';
+import { StrategyConfigurator } from '../../components/StrategyConfigurator';
+import type { StrategyType } from '../../components/StrategyConfigurator';
 import { RolloutForm } from '../../components/StrategyConfigurator/forms/RolloutForm';
 import { TargetedRolloutForm } from '../../components/StrategyConfigurator/forms/TargetedRolloutForm';
 import { UserTargetingForm } from '../../components/StrategyConfigurator/forms/UserTargetingForm';
@@ -37,14 +38,25 @@ interface FlagConfig {
   id?: string;
   isEnabled: boolean;
   strategyType: StrategyType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   strategyConfig: Record<string, any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rules?: any; // legacy
+  scheduledAt?: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  scheduledConfig?: Record<string, any> | null;
 }
 
 interface ConfigState {
   isEnabled: boolean;
   strategyType: StrategyType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   strategyConfig: Record<string, any>;
+  scheduledAt: string | null;
+  scheduledEnabled: boolean;
+  scheduledStrategyType: StrategyType;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  scheduledStrategyConfig: Record<string, any>;
   saving: boolean;
   saved: boolean;
   expanded: boolean;
@@ -96,6 +108,10 @@ export const FlagConfigurePage = () => {
                 isEnabled: cfg.isEnabled ?? false,
                 strategyType: (cfg.strategyType as StrategyType) || 'boolean',
                 strategyConfig: cfg.strategyConfig || {},
+                scheduledAt: cfg.scheduledAt || null,
+                scheduledEnabled: cfg.scheduledConfig?.isEnabled ?? (cfg.isEnabled ?? false),
+                scheduledStrategyType: (cfg.scheduledConfig?.strategyType as StrategyType) || 'boolean',
+                scheduledStrategyConfig: cfg.scheduledConfig?.strategyConfig || {},
                 saving: false,
                 saved: false,
                 expanded: false,
@@ -109,6 +125,10 @@ export const FlagConfigurePage = () => {
                 isEnabled: false,
                 strategyType: 'boolean',
                 strategyConfig: {},
+                scheduledAt: null,
+                scheduledEnabled: false,
+                scheduledStrategyType: 'boolean',
+                scheduledStrategyConfig: {},
                 saving: false,
                 saved: false,
                 expanded: false,
@@ -148,6 +168,17 @@ export const FlagConfigurePage = () => {
     }));
   };
 
+  const updateScheduledStrategyConfig = (envId: string, updates: Record<string, any>) => {
+    setConfigMap((prev) => ({
+      ...prev,
+      [envId]: {
+        ...prev[envId],
+        scheduledStrategyConfig: { ...prev[envId].scheduledStrategyConfig, ...updates },
+        saved: false
+      },
+    }));
+  };
+
   const handleToggle = (envId: string) => {
     updateConfigField(envId, { isEnabled: !configMap[envId].isEnabled, saved: false });
   };
@@ -160,6 +191,12 @@ export const FlagConfigurePage = () => {
         isEnabled: cfg.isEnabled,
         strategyType: cfg.strategyType,
         strategyConfig: cfg.strategyConfig,
+        scheduledAt: cfg.scheduledAt,
+        scheduledConfig: cfg.scheduledAt ? {
+           isEnabled: cfg.scheduledEnabled,
+           strategyType: cfg.scheduledStrategyType,
+           strategyConfig: cfg.scheduledStrategyConfig,
+        } : null,
       });
       updateConfigField(envId, { saving: false, saved: true });
       setTimeout(() => updateConfigField(envId, { saved: false }), 2500);
@@ -169,71 +206,78 @@ export const FlagConfigurePage = () => {
     }
   };
 
-  const renderStrategyForm = (envId: string) => {
+  const renderStrategyForm = (envId: string, isScheduled: boolean = false) => {
     const cfg = configMap[envId];
     if (!cfg) return null;
 
-    switch (cfg.strategyType) {
+    const stratType = isScheduled ? cfg.scheduledStrategyType : cfg.strategyType;
+    const stratConfig = isScheduled ? cfg.scheduledStrategyConfig : cfg.strategyConfig;
+    const updConfig = isScheduled ? updateScheduledStrategyConfig : updateStrategyConfig;
+
+    switch (stratType) {
       case 'rollout':
         return (
           <RolloutForm 
-            percentage={cfg.strategyConfig.percentage ?? 0}
-            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            percentage={stratConfig.percentage ?? 0}
+            hashAttribute={stratConfig.hashAttribute ?? 'userId'}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'targeted_rollout':
       case 'attribute_matching':
         return (
           <TargetedRolloutForm
-            percentage={cfg.strategyType === 'attribute_matching' ? 100 : (cfg.strategyConfig.percentage ?? 0)}
-            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
-            rules={cfg.strategyConfig.rules ?? []}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            percentage={stratType === 'attribute_matching' ? 100 : (stratConfig.percentage ?? 0)}
+            hashAttribute={stratConfig.hashAttribute ?? 'userId'}
+            rules={stratConfig.rules ?? []}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'user_targeting':
         return (
           <UserTargetingForm
-            userIds={cfg.strategyConfig.userIds ?? []}
-            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
-            fallthrough={cfg.strategyConfig.fallthrough ?? false}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            userIds={stratConfig.userIds ?? []}
+            hashAttribute={stratConfig.hashAttribute ?? 'userId'}
+            fallthrough={stratConfig.fallthrough ?? false}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'ab_test':
         return (
           <AbTestForm
-            variants={cfg.strategyConfig.variants ?? []}
-            hashAttribute={cfg.strategyConfig.hashAttribute ?? 'userId'}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            variants={stratConfig.variants ?? []}
+            hashAttribute={stratConfig.hashAttribute ?? 'userId'}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'time_window':
         return (
           <TimeWindowForm
-            startDate={cfg.strategyConfig.startDate ?? new Date().toISOString()}
-            endDate={cfg.strategyConfig.endDate ?? new Date().toISOString()}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            startDate={stratConfig.startDate ?? new Date().toISOString()}
+            endDate={stratConfig.endDate ?? new Date().toISOString()}
+            timezone={stratConfig.timezone ?? 'UTC'}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'prerequisite':
         return (
           <PrerequisiteForm
-            flagKey={cfg.strategyConfig.flagKey ?? ''}
-            expectedValue={cfg.strategyConfig.expectedValue ?? true}
-            onChange={(updates) => updateStrategyConfig(envId, updates)}
+            flagKey={stratConfig.flagKey ?? ''}
+            expectedValue={stratConfig.expectedValue ?? true}
+            onChange={(updates) => updConfig(envId, updates)}
           />
         );
       case 'boolean':
-      default:
+      default: {
+        const enabled = isScheduled ? cfg.scheduledEnabled : cfg.isEnabled;
         return (
           <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 text-center">
             <p className="text-xs text-slate-500 font-medium">
-              Standard Kill Switch enabled. Flag will return <strong>{cfg.isEnabled ? 'true' : 'false'}</strong> globally in this environment.
+              Standard Kill Switch enabled. Flag will return <strong>{enabled ? 'true' : 'false'}</strong> globally in this environment.
             </p>
           </div>
         );
+      }
     }
   };
 
@@ -273,7 +317,15 @@ export const FlagConfigurePage = () => {
           </span>
         </div>
         {flag?.description && <p className="text-slate-500 mt-1">{flag.description}</p>}
-        <p className="text-sm text-slate-400 mt-1">Configure evaluation strategies per environment.</p>
+        <div className="flex items-center gap-4 mt-2">
+          <p className="text-sm text-slate-400">Configure evaluation strategies per environment.</p>
+          <a
+            href={`/projects/${projectId}/activity`}
+            className="text-sm font-semibold text-primary-600 hover:text-primary-700 underline underline-offset-2 flex items-center gap-1"
+          >
+            View change history for this flag
+          </a>
+        </div>
       </div>
 
       {environments.length === 0 ? (
@@ -308,6 +360,11 @@ export const FlagConfigurePage = () => {
                       <span className={cn('text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider', envStyle.badge)}>
                         {env.name}
                       </span>
+                      {cfg.strategyType === 'time_window' && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider bg-purple-100 text-purple-700">
+                          Scheduled
+                        </span>
+                      )}
                     </div>
                     <p className="text-[11px] text-slate-400 font-mono truncate mt-1">{env.apiKey}</p>
                   </div>
@@ -339,10 +396,16 @@ export const FlagConfigurePage = () => {
                     </button>
 
                     {/* Save button */}
-                    {cfg.expanded && (
+                    {cfg.expanded && (() => {
+                      const isSaveDisabled = cfg.saving || (
+                        cfg.strategyType === 'time_window' && 
+                        new Date(cfg.strategyConfig.startDate || '') >= new Date(cfg.strategyConfig.endDate || '')
+                      );
+                      
+                      return (
                       <button
                         onClick={() => handleSave(env.id)}
-                        disabled={cfg.saving}
+                        disabled={isSaveDisabled}
                         className={cn(
                           'flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-xs font-bold transition-all',
                           cfg.saved
@@ -357,18 +420,70 @@ export const FlagConfigurePage = () => {
                         )}
                         {cfg.saved ? 'Saved!' : cfg.saving ? 'Saving...' : 'Save Changes'}
                       </button>
-                    )}
+                    )})()}
                   </div>
                 </div>
 
                 {/* Strategy Configurator (Expandable) */}
                 {cfg.expanded && (
-                  <div className="border-t border-slate-100 p-8 bg-slate-50/50">
-                    <StrategyConfigurator 
-                      strategyType={cfg.strategyType}
-                      onStrategyChange={(type) => updateConfigField(env.id, { strategyType: type, saved: false })}
-                      renderForm={() => renderStrategyForm(env.id)}
-                    />
+                  <div className="border-t border-slate-100 bg-slate-50/50 flex flex-col">
+                    <div className="p-8">
+                      <StrategyConfigurator 
+                        strategyType={cfg.strategyType}
+                        onStrategyChange={(type) => updateConfigField(env.id, { strategyType: type, saved: false })}
+                        renderForm={() => renderStrategyForm(env.id, false)}
+                      />
+                    </div>
+                    
+                    <div className="border-t border-slate-200 p-8 bg-purple-50/30">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <h3 className="text-sm font-bold text-slate-800">Schedule a Future Change</h3>
+                          <p className="text-[11px] text-slate-500 mt-1">Configure a config to automatically apply at a later date.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {cfg.scheduledAt && (
+                            <button
+                              onClick={() => updateConfigField(env.id, { scheduledAt: null, saved: false })}
+                              className="text-[10px] uppercase font-bold text-red-500 hover:text-red-700 underline"
+                            >
+                              Clear Schedule
+                            </button>
+                          )}
+                          <input
+                            type="datetime-local"
+                            value={cfg.scheduledAt ? cfg.scheduledAt.slice(0, 16) : ''}
+                            onChange={(e) => updateConfigField(env.id, { scheduledAt: e.target.value ? new Date(e.target.value).toISOString() : null, saved: false })}
+                            className="text-xs py-2 px-3 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 font-medium"
+                          />
+                        </div>
+                      </div>
+                      
+                      {cfg.scheduledAt && (
+                        <div className="bg-white p-6 rounded-2xl border border-purple-100 shadow-sm mt-4">
+                          <div className="flex items-center gap-4 mb-6">
+                            <button
+                              onClick={() => updateConfigField(env.id, { scheduledEnabled: !cfg.scheduledEnabled, saved: false })}
+                              className="focus:outline-none transition-all"
+                            >
+                              {cfg.scheduledEnabled ? (
+                                <ToggleRight className="w-8 h-8 text-purple-600 hover:text-purple-700 transition-colors" />
+                              ) : (
+                                <ToggleLeft className="w-8 h-8 text-slate-300 hover:text-slate-400 transition-colors" />
+                              )}
+                            </button>
+                            <span className="text-xs font-bold text-slate-700">
+                              {cfg.scheduledEnabled ? 'Flag will be ENABLED' : 'Flag will be DISABLED'}
+                            </span>
+                          </div>
+                          <StrategyConfigurator 
+                            strategyType={cfg.scheduledStrategyType}
+                            onStrategyChange={(type) => updateConfigField(env.id, { scheduledStrategyType: type, saved: false })}
+                            renderForm={() => renderStrategyForm(env.id, true)}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

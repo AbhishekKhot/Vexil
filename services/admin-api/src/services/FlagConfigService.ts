@@ -4,6 +4,7 @@ import { Flag } from "../entities/Flag";
 import { Environment } from "../entities/Environment";
 import { StrategyConfig, StrategyValidationError } from "../evaluation/EvaluationStrategy.interface";
 import { StrategyFactory } from "../evaluation/StrategyFactory";
+import Redis from "ioredis";
 
 export interface SetFlagConfigInput {
     flag: Flag;
@@ -13,10 +14,15 @@ export interface SetFlagConfigInput {
     strategyConfig?: Record<string, unknown>;
     /** @deprecated Use strategyConfig with attribute_matching strategy instead */
     rules?: unknown;
+    scheduledAt?: string | null;
+    scheduledConfig?: Record<string, unknown> | null;
 }
 
 export class FlagConfigService {
-    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>) {}
+    constructor(
+        private readonly configRepo: Repository<FlagEnvironmentConfig>,
+        private readonly redisClient: Redis
+    ) {}
 
     async getFlagConfig(flagId: string, environmentId: string): Promise<FlagEnvironmentConfig | null> {
         return await this.configRepo.findOne({
@@ -26,7 +32,7 @@ export class FlagConfigService {
     }
 
     async setFlagConfig(input: SetFlagConfigInput): Promise<FlagEnvironmentConfig> {
-        const { flag, environment, isEnabled, strategyType, strategyConfig, rules } = input;
+        const { flag, environment, isEnabled, strategyType, strategyConfig, rules, scheduledAt, scheduledConfig } = input;
 
         // Validate strategy config if provided
         let parsedStrategy: StrategyConfig | undefined;
@@ -46,6 +52,8 @@ export class FlagConfigService {
                 strategyType: (parsedStrategy?.strategyType ?? "boolean") as string,
                 strategyConfig: (strategyConfig ?? null) as any,
                 rules: (rules ?? null) as any,
+                scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+                scheduledConfig: (scheduledConfig ?? null) as any,
             });
         } else {
             config.isEnabled = isEnabled;
@@ -63,8 +71,23 @@ export class FlagConfigService {
             if (rules !== undefined) {
                 config.rules = rules;
             }
+
+            if (scheduledAt !== undefined) {
+                config.scheduledAt = scheduledAt ? new Date(scheduledAt) : undefined;
+                config.scheduledConfig = (scheduledConfig ?? null) as any;
+            }
         }
 
-        return await this.configRepo.save(config);
+        const savedConfig = await this.configRepo.save(config);
+
+        if (this.redisClient && environment.id) {
+            try {
+                await this.redisClient.del(`env_configs:${environment.id}`);
+            } catch (e) {
+                console.error("Failed to invalidate cache", e);
+            }
+        }
+
+        return savedConfig;
     }
 }

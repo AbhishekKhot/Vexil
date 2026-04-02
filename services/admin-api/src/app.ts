@@ -6,10 +6,16 @@ import flagRoutes from "./routes/flagRoutes";
 import flagConfigRoutes from "./routes/flagConfigRoutes";
 import segmentRoutes from "./routes/segmentRoutes";
 import evaluationRoutes from "./routes/evaluationRoutes";
+import authRoutes from "./routes/authRoutes";
+import { authMiddleware } from "./middleware/authMiddleware";
+
+import { getRedisClient } from "./utils/redis";
+import Redis from "ioredis";
 
 declare module 'fastify' {
     interface FastifyInstance {
         orm: DataSource;
+        redis: Redis;
     }
 }
 
@@ -18,15 +24,27 @@ export function buildApp(dataSource: DataSource) {
 
     // Decorate fastify with TypeORM instance
     fastify.decorate("orm", dataSource);
+    fastify.decorate("redis", getRedisClient());
 
-    // Control Plane
-    fastify.register(projectRoutes, { prefix: "/api/projects" });
-    fastify.register(environmentRoutes, { prefix: "/api/projects" });
-    fastify.register(flagRoutes, { prefix: "/api/projects" });
-    fastify.register(flagConfigRoutes, { prefix: "/api/projects" });
-    fastify.register(segmentRoutes, { prefix: "/api/projects" });
+    // Initialize Auth System
+    authMiddleware(fastify);
 
-    // Data Plane (Edge)
+    // Auth Routes (Public)
+    fastify.register(authRoutes, { prefix: "/api/auth" });
+
+    // Control Plane (Protected)
+    fastify.register(async (api) => {
+        api.addHook("onRequest", fastify.authenticate);
+
+        api.register(projectRoutes, { prefix: "/projects" });
+        api.register(environmentRoutes, { prefix: "/projects" });
+        api.register(flagRoutes, { prefix: "/projects" });
+        api.register(flagConfigRoutes, { prefix: "/projects" });
+        api.register(segmentRoutes, { prefix: "/projects" });
+        api.register(require("./routes/auditLogRoutes").default, { prefix: "/projects" });
+    }, { prefix: "/api" });
+
+    // Data Plane (Edge) - Public (uses API keys)
     fastify.register(evaluationRoutes, { prefix: "/v1" });
     const analyticsRoutes = require("./routes/analyticsRoutes").default;
     fastify.register(analyticsRoutes, { prefix: "/v1" });
