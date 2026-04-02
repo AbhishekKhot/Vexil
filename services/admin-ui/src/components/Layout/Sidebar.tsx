@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom';
-import { Settings, Folder } from 'lucide-react';
+import { Settings, Folder, LogOut, User } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { icon: Folder, label: 'Projects', to: '/projects' },
@@ -8,6 +9,8 @@ const navItems = [
 ];
 
 export const Sidebar = () => {
+  const { user, organization, logout } = useAuth();
+
   return (
     <div className="w-64 h-full bg-slate-900 border-r border-slate-800 flex flex-col text-slate-300">
       <div className="h-16 flex items-center px-6 font-bold text-xl text-white tracking-tight border-b border-slate-800 bg-slate-900/50">
@@ -37,8 +40,24 @@ export const Sidebar = () => {
         ))}
       </div>
 
-      <div className="p-4 border-t border-slate-800 text-xs text-slate-500 font-medium">
-        Vexil Core v1.0.0
+      <div className="p-4 border-t border-slate-800 space-y-3">
+        <div className="flex items-center gap-3 px-2">
+          <div className="h-8 w-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+            <User className="h-4 w-4 text-slate-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider truncate">{organization?.name}</p>
+          </div>
+        </div>
+        
+        <button
+          onClick={logout}
+          className="w-full flex items-center px-3 py-2 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all duration-200"
+        >
+          <LogOut className="w-4 h-4 mr-3" />
+          Sign out
+        </button>
       </div>
     </div>
   );

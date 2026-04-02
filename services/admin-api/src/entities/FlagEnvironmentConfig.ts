@@ -59,6 +59,19 @@ export class FlagEnvironmentConfig {
     @Column({ type: "simple-json", nullable: true })
     rules?: unknown;
 
+    /**
+     * Optional timestamp for when a scheduled config change should apply.
+     */
+    @Column({ type: "timestamp", nullable: true })
+    scheduledAt?: Date;
+
+    /**
+     * The future state to apply when scheduledAt is reached.
+     * Expected schema: { isEnabled: boolean, strategyType: string, strategyConfig?: any }
+     */
+    @Column({ type: "jsonb", nullable: true })
+    scheduledConfig?: Record<string, unknown>;
+
     @CreateDateColumn()
     createdAt!: Date;
 }

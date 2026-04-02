@@ -1,6 +1,6 @@
 import React from 'react';
 import { Target, Hash, Filter, Plus, Trash2 } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+
 
 export interface TargetingRule {
   attribute: string;
