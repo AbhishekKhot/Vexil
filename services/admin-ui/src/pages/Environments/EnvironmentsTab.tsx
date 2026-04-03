@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Server, Copy, Check, AlertCircle, Loader2, ShieldCheck, Trash2 } from 'lucide-react';
+import { Plus, Server, Copy, Check, AlertCircle, Loader2, ShieldCheck, Trash2, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../api/client';
 
 interface Environment {
@@ -57,6 +57,7 @@ export const EnvironmentsTab = () => {
   const [showModal, setShowModal] = useState(false);
   const [newEnvName, setNewEnvName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [rotatingId, setRotatingId] = useState<string | null>(null);
 
   const fetchEnvironments = async () => {
     try {
@@ -97,6 +98,26 @@ export const EnvironmentsTab = () => {
       setEnvironments((prev) => prev.filter((e) => e.id !== id));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to delete environment.');
+    }
+  };
+
+  const handleRotateKey = async (id: string, name: string) => {
+    if (
+      !window.confirm(
+        `Rotate the API key for "${name}"?\n\nAny SDK clients using the old key will stop working immediately. Update them with the new key after rotating.`
+      )
+    )
+      return;
+    try {
+      setRotatingId(id);
+      const res = await apiClient.post(`/projects/${projectId}/environments/${id}/rotate-key`);
+      setEnvironments((prev) =>
+        prev.map((e) => (e.id === id ? { ...e, apiKey: res.data.apiKey } : e))
+      );
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to rotate API key.');
+    } finally {
+      setRotatingId(null);
     }
   };
 
@@ -157,7 +178,7 @@ export const EnvironmentsTab = () => {
                     </p>
                   </div>
                 </div>
-                
+
                 <button
                   onClick={() => handleDelete(env.id, env.name)}
                   className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
@@ -169,9 +190,24 @@ export const EnvironmentsTab = () => {
 
               {/* SDK Key Section */}
               <div className="mt-4 pt-4 border-t border-slate-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <ShieldCheck className="w-4 h-4 text-slate-400" />
-                  <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">SDK Client Key</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">SDK Client Key</span>
+                  </div>
+                  <button
+                    onClick={() => handleRotateKey(env.id, env.name)}
+                    disabled={rotatingId === env.id}
+                    title="Rotate API Key"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-all disabled:opacity-50"
+                  >
+                    {rotatingId === env.id ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-3 h-3" />
+                    )}
+                    Rotate Key
+                  </button>
                 </div>
                 <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                   <code className="flex-1 text-xs text-slate-700 font-mono truncate">{env.apiKey}</code>
@@ -209,7 +245,6 @@ export const EnvironmentsTab = () => {
                 />
               </div>
               <p className="text-xs text-slate-400 mb-6">An SDK key will be generated automatically.</p>
-              {/* Suggestions */}
               <div className="flex gap-2 mb-6 flex-wrap">
                 {['development', 'staging', 'production', 'test'].map((s) => (
                   <button

@@ -12,6 +12,7 @@ import { User } from "./entities/User";
 import { Organization } from "./entities/Organization";
 import { SchedulerService } from "./services/SchedulerService";
 import { getRedisClient } from "./utils/redis";
+import { eventConsumer } from "./workers/EventConsumer";
 
 const start = async () => {
     const dataSource = new DataSource({
@@ -33,7 +34,7 @@ const start = async () => {
     const scheduler = new SchedulerService(dataSource.getRepository(FlagEnvironmentConfig), redisClient);
     scheduler.start();
 
-    const app = buildApp(dataSource);
+    const app = await buildApp(dataSource);
 
     try {
         await app.listen({ port: 3000, host: '0.0.0.0' });
@@ -43,8 +44,15 @@ const start = async () => {
         process.exit(1);
     }
 
-    process.on('SIGTERM', () => {
+    if (process.env.RABBITMQ_URL) {
+        eventConsumer.start(process.env.RABBITMQ_URL).catch((err) =>
+            console.error("[EventConsumer] Failed to start:", err.message)
+        );
+    }
+
+    process.on('SIGTERM', async () => {
         scheduler.stop();
+        await eventConsumer.stop();
         redisClient.quit();
     });
 };

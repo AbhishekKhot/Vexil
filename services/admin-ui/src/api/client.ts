@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Base URL points to our backend API
 export const apiClient = axios.create({
-  baseURL: '/', // Use absolute or root path depending on proxy
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },

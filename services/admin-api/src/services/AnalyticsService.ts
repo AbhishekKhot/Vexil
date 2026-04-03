@@ -1,12 +1,14 @@
 import { Repository } from "typeorm";
 import { Environment } from "../entities/Environment";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
+import { Project } from "../entities/Project";
 
 export class AnalyticsService {
     constructor(
         private environmentRepo: Repository<Environment>,
         private eventRepo: Repository<EvaluationEvent>,
-        private publishFn: (payload: any) => Promise<boolean>
+        private publishFn: (payload: any) => Promise<boolean>,
+        private projectRepo?: Repository<Project>
     ) {}
 
     async ingestEvents(apiKey: string, events: any[]): Promise<boolean> {
@@ -49,12 +51,13 @@ export class AnalyticsService {
     }
 
     async getAnalytics(projectId: string, environmentId?: string, flagKey?: string) {
-        // This is a simplified query; in a real app, we'd use more sophisticated aggregation.
+        // Join event → environment → project so we can filter by projectId
         const query = this.eventRepo.createQueryBuilder("event")
+            .innerJoin(Environment, "env", "env.id = event.environmentId")
             .select("event.flagKey", "flagKey")
             .addSelect("COUNT(event.id)", "count")
             .addSelect("SUM(CASE WHEN event.result = true THEN 1 ELSE 0 END)", "enabledCount")
-            .where("1=1");
+            .where("env.projectId = :projectId", { projectId });
 
         if (environmentId) {
             query.andWhere("event.environmentId = :environmentId", { environmentId });

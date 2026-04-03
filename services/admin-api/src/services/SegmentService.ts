@@ -37,6 +37,29 @@ export class SegmentService {
         });
     }
 
+    async updateSegment(id: string, updates: { name?: string; description?: string; rules?: any }): Promise<Segment> {
+        const segment = await this.segmentRepo.findOne({ where: { id }, relations: ["project"] });
+        if (!segment) throw new Error("Segment not found");
+
+        if (updates.name !== undefined) {
+            if (updates.name.trim().length < 2) throw new Error("Segment name must be at least 2 characters");
+            segment.name = updates.name.trim();
+        }
+
+        if (updates.description !== undefined) {
+            segment.description = updates.description;
+        }
+
+        if (updates.rules !== undefined) {
+            if (!updates.rules || typeof updates.rules !== "object") {
+                throw new Error("Segment must have valid targeting rules");
+            }
+            segment.rules = updates.rules;
+        }
+
+        return await this.segmentRepo.save(segment);
+    }
+
     async deleteSegment(id: string): Promise<boolean> {
         const result = await this.segmentRepo.delete(id);
         return (result.affected || 0) > 0;

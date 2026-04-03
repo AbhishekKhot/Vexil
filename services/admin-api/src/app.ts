@@ -8,6 +8,7 @@ import segmentRoutes from "./routes/segmentRoutes";
 import evaluationRoutes from "./routes/evaluationRoutes";
 import authRoutes from "./routes/authRoutes";
 import { authMiddleware } from "./middleware/authMiddleware";
+import { registerOpenApi } from "./openapi";
 
 import { getRedisClient } from "./utils/redis";
 import Redis from "ioredis";
@@ -19,8 +20,10 @@ declare module 'fastify' {
     }
 }
 
-export function buildApp(dataSource: DataSource) {
+export async function buildApp(dataSource: DataSource) {
     const fastify = Fastify({ logger: false });
+
+    await registerOpenApi(fastify);
 
     // Decorate fastify with TypeORM instance
     fastify.decorate("orm", dataSource);
@@ -42,12 +45,15 @@ export function buildApp(dataSource: DataSource) {
         api.register(flagConfigRoutes, { prefix: "/projects" });
         api.register(segmentRoutes, { prefix: "/projects" });
         api.register(require("./routes/auditLogRoutes").default, { prefix: "/projects" });
+        // Analytics stats (JWT-protected, per-project)
+        const { analyticsControlRoutes } = require("./routes/analyticsRoutes");
+        api.register(analyticsControlRoutes, { prefix: "/projects" });
     }, { prefix: "/api" });
 
     // Data Plane (Edge) - Public (uses API keys)
     fastify.register(evaluationRoutes, { prefix: "/v1" });
-    const analyticsRoutes = require("./routes/analyticsRoutes").default;
-    fastify.register(analyticsRoutes, { prefix: "/v1" });
+    const { analyticsDataRoutes } = require("./routes/analyticsRoutes");
+    fastify.register(analyticsDataRoutes, { prefix: "/v1" });
 
     return fastify;
 }
