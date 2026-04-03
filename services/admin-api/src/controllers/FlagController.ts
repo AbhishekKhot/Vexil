@@ -80,6 +80,35 @@ export class FlagController {
         }
     };
 
+    updateFlag = async (
+        request: FastifyRequest<{ Params: { projectId: string; flagId: string }; Body: { description?: string; type?: string } }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const flag = await this.flagService.getFlag(request.params.flagId);
+            if (!flag || flag.project.id !== request.params.projectId) {
+                return reply.code(404).send({ error: "Flag not found" });
+            }
+
+            const updated = await this.flagService.updateFlag(request.params.flagId, request.body);
+
+            await this.auditLogService.log({
+                entityType: "flag",
+                entityId: updated.id,
+                action: "updated",
+                actorId: (request as any).user.id,
+                actorEmail: (request as any).user.email,
+                previousValue: { key: flag.key, type: flag.type, description: flag.description },
+                newValue: { key: updated.key, type: updated.type, description: updated.description },
+                metadata: { projectId: request.params.projectId, flagKey: updated.key }
+            });
+
+            return reply.code(200).send(updated);
+        } catch (error: any) {
+            return reply.code(400).send({ error: error.message });
+        }
+    };
+
     deleteFlag = async (
         request: FastifyRequest<{ Params: { projectId: string, id: string } }>, 
         reply: FastifyReply

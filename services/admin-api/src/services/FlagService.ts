@@ -43,6 +43,25 @@ export class FlagService {
         });
     }
 
+    async updateFlag(id: string, updates: { description?: string; type?: string }): Promise<Flag> {
+        const flag = await this.flagRepository.findOne({ where: { id }, relations: ["project"] });
+        if (!flag) throw new Error("Flag not found");
+
+        if (updates.type !== undefined) {
+            const validTypes = ["boolean", "string", "number", "json"];
+            if (!validTypes.includes(updates.type)) {
+                throw new Error(`Invalid flag type. Must be one of: ${validTypes.join(", ")}`);
+            }
+            flag.type = updates.type;
+        }
+
+        if (updates.description !== undefined) {
+            flag.description = updates.description;
+        }
+
+        return await this.flagRepository.save(flag);
+    }
+
     async deleteFlag(id: string): Promise<boolean> {
         const result = await this.flagRepository.delete(id);
         return (result.affected || 0) > 0;

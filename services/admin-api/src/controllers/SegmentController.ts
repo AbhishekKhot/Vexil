@@ -80,6 +80,35 @@ export class SegmentController {
         }
     };
 
+    updateSegment = async (
+        request: FastifyRequest<{ Params: { projectId: string; segmentId: string }; Body: { name?: string; description?: string; rules?: any } }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const segment = await this.segmentService.getSegment(request.params.segmentId);
+            if (!segment || segment.project.id !== request.params.projectId) {
+                return reply.code(404).send({ error: "Segment not found" });
+            }
+
+            const updated = await this.segmentService.updateSegment(request.params.segmentId, request.body);
+
+            await this.auditLogService.log({
+                entityType: "segment",
+                entityId: updated.id,
+                action: "updated",
+                actorId: (request as any).user.id,
+                actorEmail: (request as any).user.email,
+                previousValue: { name: segment.name, description: segment.description, rules: segment.rules },
+                newValue: { name: updated.name, description: updated.description, rules: updated.rules },
+                metadata: { projectId: request.params.projectId, segmentName: updated.name }
+            });
+
+            return reply.code(200).send(updated);
+        } catch (error: any) {
+            return reply.code(400).send({ error: error.message });
+        }
+    };
+
     deleteSegment = async (
         request: FastifyRequest<{ Params: { projectId: string, id: string } }>, 
         reply: FastifyReply

@@ -5,20 +5,100 @@ import { Environment } from "../entities/Environment";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
 import { rabbitMQConfig } from "../utils/rabbitmq";
 
-export default async function analyticsRoutes(fastify: FastifyInstance) {
+function buildAnalyticsService(fastify: FastifyInstance) {
     const envRepo = fastify.orm.getRepository(Environment);
     const eventRepo = fastify.orm.getRepository(EvaluationEvent);
-    
-    // Wire up real publisher function
+
     const publishFn = async (payload: any) => {
-        // In local/test environments if not connected yet, we could skip or mock.
-        if (process.env.NODE_ENV === 'test') { return true; }
+        if (process.env.NODE_ENV === "test") return true;
         return await rabbitMQConfig.publishEvent(payload);
     };
 
-    const analyticsService = new AnalyticsService(envRepo, eventRepo, publishFn);
+    return new AnalyticsService(envRepo, eventRepo, publishFn);
+}
+
+/** Data-plane: POST /v1/events — API key auth, no JWT required */
+export async function analyticsDataRoutes(fastify: FastifyInstance) {
+    const analyticsService = buildAnalyticsService(fastify);
     const analyticsController = new AnalyticsController(analyticsService);
 
-    fastify.post("/events", analyticsController.ingest);
-    fastify.get("/projects/:projectId/stats", analyticsController.getAnalytics);
+    fastify.post("/events", {
+        schema: {
+            tags: ["Analytics"],
+            summary: "Ingest SDK evaluation events (data plane — API key auth)",
+            security: [{ apiKeyAuth: [] }],
+            body: {
+                type: "object",
+                required: ["apiKey", "events"],
+                properties: {
+                    apiKey: { type: "string", description: "Environment API key (vex_...)" },
+                    events: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            required: ["flagKey", "result"],
+                            properties: {
+                                flagKey: { type: "string" },
+                                result: {},
+                                context: { type: "object" },
+                                timestamp: { type: "string", format: "date-time" },
+                            },
+                        },
+                    },
+                },
+            },
+            response: {
+                200: {
+                    type: "object",
+                    properties: {
+                        queued: { type: "number", description: "Number of events accepted" },
+                    },
+                },
+                401: { description: "Invalid API key", $ref: "Error#" },
+            },
+        },
+    }, analyticsController.ingest as any);
 }
+
+/** Control-plane: GET /api/projects/:projectId/stats — JWT protected */
+export async function analyticsControlRoutes(fastify: FastifyInstance) {
+    const analyticsService = buildAnalyticsService(fastify);
+    const analyticsController = new AnalyticsController(analyticsService);
+
+    fastify.get("/:projectId/stats", {
+        schema: {
+            tags: ["Analytics"],
+            summary: "Get analytics stats for a project",
+            security: [{ bearerAuth: [] }],
+            params: {
+                type: "object",
+                properties: { projectId: { type: "string" } },
+            },
+            querystring: {
+                type: "object",
+                properties: {
+                    environmentId: { type: "string", description: "Filter by environment ID" },
+                    flagKey: { type: "string", description: "Filter by flag key" },
+                },
+            },
+            response: {
+                200: {
+                    type: "array",
+                    items: {
+                        type: "object",
+                        properties: {
+                            flagKey: { type: "string" },
+                            evaluations: { type: "number" },
+                            enabled: { type: "number" },
+                            disabled: { type: "number" },
+                            passRate: { type: "number", description: "Percentage of enabled evaluations (0–100)" },
+                        },
+                    },
+                },
+            },
+        },
+    }, analyticsController.getAnalytics as any);
+}
+
+// Default export kept for backwards compatibility (data plane)
+export default analyticsDataRoutes;

@@ -57,6 +57,33 @@ export class EnvironmentController {
         }
     };
 
+    rotateApiKey = async (
+        request: FastifyRequest<{ Params: { projectId: string; envId: string } }>,
+        reply: FastifyReply
+    ) => {
+        try {
+            const env = await this.environmentService.getEnvironment(request.params.envId);
+            if (!env || env.project.id !== request.params.projectId) {
+                return reply.code(404).send({ error: "Environment not found" });
+            }
+
+            const updated = await this.environmentService.rotateApiKey(request.params.envId);
+
+            await this.auditLogService.log({
+                entityType: "environment",
+                entityId: updated.id,
+                action: "api_key_rotated",
+                actorId: (request as any).user.id,
+                actorEmail: (request as any).user.email,
+                metadata: { projectId: request.params.projectId, environmentName: updated.name }
+            });
+
+            return reply.code(200).send({ apiKey: updated.apiKey });
+        } catch (error: any) {
+            return reply.code(500).send({ error: "Internal Server Error" });
+        }
+    };
+
     deleteEnvironment = async (
         request: FastifyRequest<{ Params: { projectId: string, id: string } }>, 
         reply: FastifyReply

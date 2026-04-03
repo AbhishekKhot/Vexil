@@ -57,23 +57,5 @@ module Vexil
     def details(key)
       @flags[key] || nil
     end
-
-    # Simple tracking of evaluation events for analytics
-    def track_events(events)
-      uri = URI.parse("#{@base_url}/v1/events")
-      request = Net::HTTP::Post.new(uri)
-      request['Authorization'] = "Bearer #{@api_key}"
-      request['Content-Type'] = 'application/json'
-      request.body = events.to_json
-
-      begin
-        Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
-          http.request(request)
-        end
-      rescue => e
-        # Analytics should be fire-and-forget; don't raise errors in main app flow
-        warn "[Vexil] Failed to track events: #{e.message}"
-      end
-    end
   end
 end

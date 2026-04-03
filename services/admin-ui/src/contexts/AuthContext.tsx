@@ -38,7 +38,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (token) {
         try {
           // Verify token and get user info
-          const response = await apiClient.get('/api/auth/me');
+          const response = await apiClient.get('/auth/me');
           setUser(response.data);
           setOrganization(response.data.organization);
         } catch (error) {

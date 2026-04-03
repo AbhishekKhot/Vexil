@@ -23,10 +23,10 @@ const RegisterPage: React.FC = () => {
 
     try {
       // 1. Register organization and user
-      await apiClient.post('/api/auth/register', { email, password, name, orgName });
-      
+      await apiClient.post('/auth/register', { email, password, name, orgName });
+
       // 2. Automagically log them in after registration
-      const loginResponse = await apiClient.post('/api/auth/login', { email, password });
+      const loginResponse = await apiClient.post('/auth/login', { email, password });
       const { token, user, organization } = loginResponse.data;
       
       login(token, user, organization);

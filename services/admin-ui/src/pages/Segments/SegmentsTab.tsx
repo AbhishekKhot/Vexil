@@ -1,14 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Plus, Users, AlertCircle, Loader2, ChevronDown, ChevronUp, Code2, Trash2 } from 'lucide-react';
+import { Plus, Users, AlertCircle, Loader2, ChevronDown, ChevronUp, Trash2, Pencil } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { cn } from '../../utils/cn';
+
+interface TargetingRule {
+  attribute: string;
+  operator: string;
+  values: string[];
+}
 
 interface Segment {
   id: string;
   name: string;
   description?: string;
-  rules: any;
+  rules: TargetingRule[];
   createdAt: string;
 }
 
@@ -16,17 +22,102 @@ interface OutletContext {
   projectId: string;
 }
 
-const DEFAULT_RULES = JSON.stringify(
-  [
-    {
-      attribute: 'country',
-      operator: 'in',
-      values: ['US', 'CA'],
-    },
-  ],
-  null,
-  2
-);
+const OPERATORS = ['in', 'not_in', 'eq', 'neq', 'contains', 'gt', 'lt'] as const;
+type Operator = typeof OPERATORS[number];
+
+const OPERATOR_LABELS: Record<Operator, string> = {
+  in: 'is in',
+  not_in: 'is not in',
+  eq: 'equals',
+  neq: 'not equals',
+  contains: 'contains',
+  gt: 'greater than',
+  lt: 'less than',
+};
+
+const emptyRule = (): TargetingRule => ({ attribute: '', operator: 'in', values: [] });
+
+// ─── Visual Rule Builder ────────────────────────────────────────────────────
+
+const RuleBuilder = ({
+  rules,
+  onChange,
+}: {
+  rules: TargetingRule[];
+  onChange: (rules: TargetingRule[]) => void;
+}) => {
+  const update = (index: number, patch: Partial<TargetingRule>) => {
+    onChange(rules.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+
+  const remove = (index: number) => onChange(rules.filter((_, i) => i !== index));
+
+  const add = () => onChange([...rules, emptyRule()]);
+
+  return (
+    <div className="space-y-3">
+      {rules.map((rule, i) => (
+        <div key={i} className="flex items-start gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
+          {/* Attribute */}
+          <input
+            type="text"
+            placeholder="attribute"
+            value={rule.attribute}
+            onChange={(e) => update(i, { attribute: e.target.value })}
+            className="flex-1 min-w-0 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          />
+          {/* Operator */}
+          <select
+            value={rule.operator}
+            onChange={(e) => update(i, { operator: e.target.value })}
+            className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          >
+            {OPERATORS.map((op) => (
+              <option key={op} value={op}>{OPERATOR_LABELS[op]}</option>
+            ))}
+          </select>
+          {/* Values (comma-separated) */}
+          <input
+            type="text"
+            placeholder="value1, value2"
+            value={rule.values.join(', ')}
+            onChange={(e) =>
+              update(i, {
+                values: e.target.value
+                  .split(',')
+                  .map((v) => v.trim())
+                  .filter(Boolean),
+              })
+            }
+            className="flex-[1.5] min-w-0 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+          />
+          <button
+            type="button"
+            onClick={() => remove(i)}
+            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all flex-shrink-0"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={add}
+        className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 hover:text-primary-700 transition-colors px-1"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        Add Rule
+      </button>
+
+      {rules.length > 1 && (
+        <p className="text-[10px] text-slate-400 px-1">All rules must pass (AND logic).</p>
+      )}
+    </div>
+  );
+};
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export const SegmentsTab = () => {
   const { projectId } = useOutletContext<OutletContext>();
@@ -34,10 +125,14 @@ export const SegmentsTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: '', description: '', rules: DEFAULT_RULES });
+  const [form, setForm] = useState({ name: '', description: '', rules: [emptyRule()] });
   const [creating, setCreating] = useState(false);
-  const [rulesError, setRulesError] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // Edit state
+  const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', description: '', rules: [emptyRule()] });
+  const [saving, setSaving] = useState(false);
 
   const fetchSegments = async () => {
     try {
@@ -55,24 +150,12 @@ export const SegmentsTab = () => {
     fetchSegments();
   }, [projectId]);
 
-  const handleRulesChange = (value: string) => {
-    setForm((f) => ({ ...f, rules: value }));
-    try {
-      JSON.parse(value);
-      setRulesError('');
-    } catch {
-      setRulesError('Invalid JSON — please fix before saving.');
-    }
-  };
-
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim() || rulesError) return;
-    let parsedRules: any;
-    try {
-      parsedRules = JSON.parse(form.rules);
-    } catch {
-      setRulesError('Invalid JSON — please fix before saving.');
+    if (!form.name.trim()) return;
+    const validRules = form.rules.filter((r) => r.attribute.trim());
+    if (validRules.length === 0) {
+      alert('Add at least one rule with an attribute.');
       return;
     }
     try {
@@ -80,12 +163,11 @@ export const SegmentsTab = () => {
       const res = await apiClient.post(`/projects/${projectId}/segments`, {
         name: form.name.trim(),
         description: form.description,
-        rules: parsedRules,
+        rules: validRules,
       });
       setSegments((prev) => [...prev, res.data]);
       setShowModal(false);
-      setForm({ name: '', description: '', rules: DEFAULT_RULES });
-      setRulesError('');
+      setForm({ name: '', description: '', rules: [emptyRule()] });
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to create segment.');
     } finally {
@@ -93,14 +175,43 @@ export const SegmentsTab = () => {
     }
   };
 
+  const openEdit = (seg: Segment) => {
+    setEditingSegment(seg);
+    const rules = Array.isArray(seg.rules) && seg.rules.length > 0
+      ? seg.rules.map((r) => ({ ...r, values: Array.isArray(r.values) ? r.values.map(String) : [] }))
+      : [emptyRule()];
+    setEditForm({ name: seg.name, description: seg.description ?? '', rules });
+  };
+
+  const handleEditSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSegment) return;
+    const validRules = editForm.rules.filter((r) => r.attribute.trim());
+    if (validRules.length === 0) {
+      alert('Add at least one rule with an attribute.');
+      return;
+    }
+    try {
+      setSaving(true);
+      const res = await apiClient.put(`/projects/${projectId}/segments/${editingSegment.id}`, {
+        name: editForm.name.trim(),
+        description: editForm.description,
+        rules: validRules,
+      });
+      setSegments((prev) => prev.map((s) => (s.id === editingSegment.id ? res.data : s)));
+      setEditingSegment(null);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to update segment.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -108,7 +219,7 @@ export const SegmentsTab = () => {
   const handleDelete = async (id: string, name: string) => {
     if (!window.confirm(`Are you sure you want to delete the segment "${name}"? This cannot be undone.`)) return;
     try {
-      await apiClient.delete(`/segments/${id}`);
+      await apiClient.delete(`/projects/${projectId}/segments/${id}`);
       setSegments((prev) => prev.filter((s) => s.id !== id));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to delete segment.');
@@ -173,7 +284,14 @@ export const SegmentsTab = () => {
                       Created {new Date(seg.createdAt).toLocaleDateString()}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEdit(seg)}
+                      className="p-2 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-all opacity-0 group-hover:opacity-100"
+                      title="Edit Segment"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
                     <button
                       onClick={() => handleDelete(seg.id, seg.name)}
                       className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
@@ -192,13 +310,18 @@ export const SegmentsTab = () => {
                 </div>
                 {isExpanded && (
                   <div className="border-t border-slate-100 p-5 bg-slate-50">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Code2 className="w-4 h-4 text-slate-400" />
-                      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Rules JSON</span>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Targeting Rules</p>
+                    <div className="space-y-2">
+                      {Array.isArray(seg.rules) && seg.rules.map((rule, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <code className="bg-slate-800 text-green-400 px-2 py-1 rounded font-mono">{rule.attribute}</code>
+                          <span className="text-slate-500">{OPERATOR_LABELS[rule.operator as Operator] ?? rule.operator}</span>
+                          <code className="bg-slate-800 text-amber-400 px-2 py-1 rounded font-mono">
+                            {Array.isArray(rule.values) ? rule.values.join(', ') : String(rule.values)}
+                          </code>
+                        </div>
+                      ))}
                     </div>
-                    <pre className="text-xs font-mono bg-slate-900 text-green-400 rounded-xl px-4 py-3 overflow-auto max-h-48 leading-relaxed">
-                      {JSON.stringify(seg.rules, null, 2)}
-                    </pre>
                   </div>
                 )}
               </div>
@@ -229,7 +352,6 @@ export const SegmentsTab = () => {
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm"
                 />
               </div>
-
               <div className="mb-4">
                 <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                   Description <span className="text-slate-400 font-normal">(Optional)</span>
@@ -241,48 +363,85 @@ export const SegmentsTab = () => {
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm"
                 />
               </div>
-
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5 flex items-center gap-1.5">
-                  <Code2 className="w-4 h-4" />
-                  Targeting Rules (JSON Array)
-                </label>
-                <textarea
-                  rows={10}
-                  value={form.rules}
-                  onChange={(e) => handleRulesChange(e.target.value)}
-                  className={cn(
-                    'w-full font-mono text-xs bg-slate-900 text-green-400 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 resize-y leading-relaxed',
-                    rulesError ? 'ring-2 ring-red-400 focus:ring-red-400' : 'focus:ring-primary-500'
-                  )}
-                  spellCheck={false}
-                />
-                {rulesError ? (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" /> {rulesError}
-                  </p>
-                ) : (
-                  <p className="text-xs text-slate-400 mt-1">
-                    Provide an array of rule objects with <code className="font-mono">attribute</code>, <code className="font-mono">operator</code>, and <code className="font-mono">values</code> fields.
-                  </p>
-                )}
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Targeting Rules</label>
+                <RuleBuilder rules={form.rules} onChange={(rules) => setForm((f) => ({ ...f, rules }))} />
               </div>
-
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => { setShowModal(false); setForm({ name: '', description: '', rules: DEFAULT_RULES }); setRulesError(''); }}
+                  onClick={() => { setShowModal(false); setForm({ name: '', description: '', rules: [emptyRule()] }); }}
                   className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-lg transition-colors text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={creating || !!rulesError}
+                  disabled={creating}
                   className="px-5 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors text-sm shadow-md disabled:opacity-50 flex items-center gap-2"
                 >
                   {creating && <Loader2 className="w-4 h-4 animate-spin" />}
                   {creating ? 'Creating...' : 'Create Segment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Segment Modal */}
+      {editingSegment && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-2xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center">
+                <Pencil className="w-5 h-5 text-primary-600" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Edit Segment</h2>
+            </div>
+            <form onSubmit={handleEditSave}>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">Segment Name</label>
+                <input
+                  required
+                  autoFocus
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm"
+                />
+              </div>
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Description <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <input
+                  placeholder="Who does this segment target?"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 text-sm"
+                />
+              </div>
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-slate-700 mb-3">Targeting Rules</label>
+                <RuleBuilder rules={editForm.rules} onChange={(rules) => setEditForm((f) => ({ ...f, rules }))} />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingSegment(null)}
+                  className="px-4 py-2 text-slate-600 font-semibold hover:bg-slate-100 rounded-lg transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className={cn(
+                    'px-5 py-2 bg-primary-600 text-white rounded-lg font-semibold hover:bg-primary-700 transition-colors text-sm shadow-md disabled:opacity-50 flex items-center gap-2'
+                  )}
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

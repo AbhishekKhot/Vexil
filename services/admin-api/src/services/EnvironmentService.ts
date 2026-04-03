@@ -50,6 +50,27 @@ export class EnvironmentService {
         return (result.affected || 0) > 0;
     }
 
+    async rotateApiKey(id: string): Promise<Environment> {
+        const env = await this.getEnvironment(id);
+        if (!env) throw new Error("Environment not found");
+
+        const oldApiKey = env.apiKey;
+        env.apiKey = `vex_${crypto.randomBytes(24).toString("hex")}`;
+        const updated = await this.environmentRepository.save(env);
+
+        // Invalidate old and new cache entries
+        if (this.redisClient) {
+            try {
+                await this.redisClient.del(`env_apikey:${oldApiKey}`);
+                await this.redisClient.del(`env_configs:${id}`);
+            } catch (e) {
+                console.error("Failed to invalidate cache on key rotation", e);
+            }
+        }
+
+        return updated;
+    }
+
     async getEnvironment(id: string): Promise<Environment | null> {
         return await this.environmentRepository.findOne({
             where: { id },

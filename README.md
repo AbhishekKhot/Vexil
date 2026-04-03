@@ -4,6 +4,135 @@
 
 ---
 
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** ≥ 18
+- **Docker** (for Postgres, Redis, RabbitMQ)
+- **npm** ≥ 9
+
+### 1. Clone and install dependencies
+
+```bash
+git clone https://github.com/your-org/vexil.git
+cd vexil
+npm install          # installs all workspace packages
+```
+
+### 2. Start infrastructure
+
+```bash
+docker compose up -d
+```
+
+This starts:
+- PostgreSQL on port **5433**
+- Redis on port **6379**
+- RabbitMQ on ports **5672** (AMQP) and **15672** (management UI, guest/guest)
+
+### 3. Configure the backend
+
+```bash
+cd services/admin-api
+cp .env.example .env   # then edit as needed
+```
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | Fastify listen port |
+| `DB_HOST` | `127.0.0.1` | PostgreSQL host |
+| `DB_PORT` | `5433` | PostgreSQL port |
+| `DB_USER` | `postgres` | PostgreSQL username |
+| `DB_PASS` | `postgres` | PostgreSQL password |
+| `DB_NAME` | `vexil` | PostgreSQL database name |
+| `REDIS_HOST` | `127.0.0.1` | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672` | RabbitMQ connection (optional — analytics queue) |
+| `JWT_SECRET` | `vexil-dev-secret-change-in-prod` | JWT signing secret — **change in production** |
+| `NODE_ENV` | `development` | Set to `test` to use in-memory Redis mock |
+
+### 4. Start the backend
+
+```bash
+cd services/admin-api
+npm run dev          # ts-node, port 3000
+```
+
+The API is now available at `http://localhost:3000`.
+Interactive API docs (Swagger UI) are at **`http://localhost:3000/docs`**.
+
+### 5. Start the frontend
+
+```bash
+cd services/admin-ui
+npm run dev          # Vite dev server, port 5173
+```
+
+Open **`http://localhost:5173`** — register an account, create a project, and start managing flags.
+
+---
+
+## 📦 SDK Quick Start
+
+### TypeScript / Node.js
+
+```bash
+npm install @vexil/sdk-js
+```
+
+```typescript
+import { VexilClient } from "@vexil/sdk-js";
+
+const client = new VexilClient({
+  apiKey: "vex_...",           // environment API key from the dashboard
+  baseUrl: "http://localhost:3000",
+  pollingInterval: 60_000,     // optional: refresh flags every 60s
+});
+
+// Fetch flags with a user context
+await client.fetchFlags({ userId: "user_88", country: "IN", tier: "premium" });
+
+// Check boolean flags
+if (client.isEnabled("new-dashboard")) {
+  renderNewDashboard();
+}
+
+// Read typed values
+const theme = client.getValue<string>("ui-theme");      // string
+const limit = client.getValue<number>("rate-limit");    // number
+
+// Stop background processes before shutdown
+await client.destroy();
+```
+
+**Analytics** are captured automatically on every `fetchFlags()` call and flushed to `/v1/events` every 30 seconds (or when 1,000 events accumulate).
+
+### Ruby
+
+```bash
+# No gem required — just copy lib/vexil.rb into your project
+```
+
+```ruby
+require_relative "lib/vexil"
+
+client = Vexil::Client.new(
+  api_key: "vex_...",
+  base_url: "http://localhost:3000"
+)
+
+client.fetch_flags(userId: "user_88", country: "IN", tier: "premium")
+
+if client.enabled?("new-dashboard")
+  render_new_dashboard
+end
+
+theme = client.value("ui-theme", "light")
+```
+
+---
+
 ## ✨ Key Highlights
 
 - 🚀 **Sub-millisecond Latency**: Rules are processed locally in the SDK, avoiding network round-trips for every flag check.
@@ -11,7 +140,7 @@
 - 🌍 **Environment Isolation**: Native support for Development, Staging, and Production with unique API keys.
 - 🎯 **Advanced Targeting**: Segment users by region, subscription tier, or custom metadata.
 - 🛠️ **Enterprise Tech Stack**: Powered by **Fastify**, **Node.js**, **PostgreSQL**, **Redis**, and **RabbitMQ**.
-- 📦 **Multi-SDK Support**: Support for TypeScript, Go, Java and Ruby.
+- 📦 **Multi-SDK Support**: TypeScript/Node.js and Ruby SDKs included.
 
 ---
 
@@ -69,76 +198,46 @@ graph TD
 ## 🟢 TypeScript / Node.js
 
 ```typescript
-import { VexilClient } from "@vexil/node-sdk";
+import { VexilClient } from "@vexil/sdk-js";
 
-const vexil = new VexilClient("vex_dev_key_123");
+const client = new VexilClient({
+  apiKey: "vex_dev_key_123",
+  baseUrl: "http://localhost:3000",
+});
 
-const userContext = {
-  id: "user_88",
-  country: "IN",
-  tier: "premium",
-};
+const userContext = { userId: "user_88", country: "IN", tier: "premium" };
 
-// Local evaluation - no network latency
-if (vexil.getVariation("beta_feature", userContext)) {
+await client.fetchFlags(userContext);
+
+if (client.isEnabled("beta_feature")) {
   renderNewDashboard();
 } else {
   renderOldDashboard();
 }
+
+const theme = client.getValue<string>("ui-theme");
 ```
 
 ---
 
-## 🔵 Go
-
-```go
-package main
-
-import (
-	"github.com/vexil-io/go-sdk"
-)
-
-func main() {
-	client := vexil.NewClient("vex_prod_key_abc")
-
-	user := vexil.Context{
-		"id":     "user_88",
-		"tier":   "free",
-		"region": "APAC",
-	}
-
-	if client.IsEnabled("new_search_algo", user) {
-		// Run new algorithm
-	}
-}
-```
-
----
-
-## ☕ Java
-
-```java
-VexilClient client = new VexilClient("vex_prod_key_abc");
-
-VexilContext context = new VexilContext()
-    .add("id", "user_88")
-    .add("tier", "premium");
-
-if (client.getVariation("ui_v2_enabled", context, false)) {
-    // Show new UI
-}
-```
-
----
-
-## 🔴 Ruby (Rails)
+## 🔴 Ruby
 
 ```ruby
-user_context = { id: 'user_88', tier: 'premium' }
+require_relative "lib/vexil"
 
-if Vexil.get_variation('promo_banner', user_context)
-  # Show banner
+client = Vexil::Client.new(
+  api_key: "vex_dev_key_123",
+  base_url: "http://localhost:3000"
+)
+
+user_context = { userId: "user_88", country: "IN", tier: "premium" }
+client.fetch_flags(user_context)
+
+if client.enabled?("beta_feature")
+  # Show new UI
 end
+
+theme = client.value("ui-theme", "light")
 ```
 
 ---
@@ -190,29 +289,30 @@ sequenceDiagram
 
 # 2️⃣ Rule Engine Logic (LLD)
 
-To implement this consistently across TypeScript, Go, and Java, we define a standard evaluation algorithm.
-
 ---
 
 ## A. Hashing Algorithm (Consistent Selection)
 
-We use **MurmurHash3 (32-bit)**:
-- Fast
-- Excellent distribution
-- Available in every major language
+We use **djb2** for deterministic bucket assignment:
+- Fast, no dependencies
+- Even distribution across 100 buckets
+- Same `(userId + flagKey)` always maps to the same bucket
 
 ### Logic
 
-1. Take the `userId` (or fallback unique identifier).
-2. Append a **salt** (unique per flag) to prevent correlated rollouts.
-3. Generate hash.
-4. Take absolute value.
-5. Apply modulo 100.
+1. Take the `userId` (or configured `hashAttribute`) from context.
+2. Append the **flag key** as a salt to prevent correlated rollouts.
+3. Run djb2 hash.
+4. Apply modulo 100 → bucket 0–99.
 
 ```typescript
-function getBucket(userId: string, salt: string): number {
-  const hash = murmurhash3_32(`${userId}-${salt}`);
-  return Math.abs(hash) % 100;
+function computeBucket(identifier: string, seed: string): number {
+  const str = `${identifier}:${seed}`;
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
+  }
+  return Math.abs(hash >>> 0) % 100;
 }
 ```
 
@@ -248,7 +348,7 @@ Map<FlagKey, Counter>
 
 ---
 
-### Debounced Flush
+### Debounced Flush (JS SDK)
 
 - Every **30 seconds**
 - OR when buffer reaches **1000 events**
@@ -256,7 +356,7 @@ Map<FlagKey, Counter>
 SDK sends one batch request:
 
 ```
-POST /v1/analytics
+POST /v1/events
 ```
 
 ---
