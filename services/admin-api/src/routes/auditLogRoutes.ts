@@ -19,10 +19,24 @@ export default async function auditLogRoutes(fastify: FastifyInstance) {
                 type: "object",
                 properties: { projectId: { type: "string" } },
             },
+            querystring: {
+                type: "object",
+                properties: {
+                    page: { type: "string", pattern: "^[0-9]+$" },
+                    limit: { type: "string", pattern: "^[0-9]+$" },
+                    action: { type: "string" },
+                    entityType: { type: "string" },
+                },
+            },
             response: {
                 200: {
-                    type: "array",
-                    items: { $ref: "AuditLog#" },
+                    type: "object",
+                    properties: {
+                        items: { type: "array", items: { $ref: "AuditLog#" } },
+                        total: { type: "number" },
+                        page: { type: "number" },
+                        limit: { type: "number" },
+                    },
                 },
             },
         },

@@ -37,8 +37,9 @@ const start = async () => {
     const app = await buildApp(dataSource);
 
     try {
-        await app.listen({ port: 3000, host: '0.0.0.0' });
-        console.log("Vexil Admin API listening on port 3000");
+        const port = parseInt(process.env.PORT || '3000', 10);
+        await app.listen({ port, host: '0.0.0.0' });
+        console.log(`Vexil Admin API listening on port ${port}`);
     } catch (err) {
         console.error(err);
         process.exit(1);

@@ -21,7 +21,14 @@ declare module 'fastify' {
 }
 
 export async function buildApp(dataSource: DataSource) {
-    const fastify = Fastify({ logger: false });
+    const fastify = Fastify({ 
+        logger: {
+            level: 'info',
+            transport: process.env.NODE_ENV === 'development' ? {
+                target: 'pino-pretty'
+            } : undefined
+        } 
+    });
 
     await registerOpenApi(fastify);
 

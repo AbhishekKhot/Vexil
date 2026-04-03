@@ -27,34 +27,34 @@ export async function analyticsDataRoutes(fastify: FastifyInstance) {
             tags: ["Analytics"],
             summary: "Ingest SDK evaluation events (data plane — API key auth)",
             security: [{ apiKeyAuth: [] }],
-            body: {
+            headers: {
                 type: "object",
-                required: ["apiKey", "events"],
+                required: ["authorization"],
                 properties: {
-                    apiKey: { type: "string", description: "Environment API key (vex_...)" },
-                    events: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            required: ["flagKey", "result"],
-                            properties: {
-                                flagKey: { type: "string" },
-                                result: {},
-                                context: { type: "object" },
-                                timestamp: { type: "string", format: "date-time" },
-                            },
-                        },
+                    "authorization": { type: "string", description: "Environment API key (Bearer vex_...)" },
+                },
+            },
+            body: {
+                type: "array",
+                items: {
+                    type: "object",
+                    required: ["flagKey", "result"],
+                    properties: {
+                        flagKey: { type: "string" },
+                        result: {},
+                        context: { type: "object" },
+                        timestamp: { type: "string", format: "date-time" },
                     },
                 },
             },
-            response: {
-                200: {
+             response: {
+                202: {
                     type: "object",
                     properties: {
-                        queued: { type: "number", description: "Number of events accepted" },
+                        status: { type: "string" },
                     },
                 },
-                401: { description: "Invalid API key", $ref: "Error#" },
+                401: { description: "Invalid API Key", $ref: "Error#" },
             },
         },
     }, analyticsController.ingest as any);

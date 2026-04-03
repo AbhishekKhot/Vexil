@@ -14,7 +14,7 @@ export class Project {
     @Column({ nullable: true })
     description?: string;
 
-    @Column({ name: "organization_id" })
+    @Column({ name: "organization_id", nullable: true })
     organizationId!: string;
 
     @ManyToOne(() => Organization, (org) => org.projects)

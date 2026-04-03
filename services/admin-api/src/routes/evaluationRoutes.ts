@@ -19,9 +19,9 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
             security: [{ apiKeyAuth: [] }],
             headers: {
                 type: "object",
-                required: ["x-api-key"],
+                required: ["authorization"],
                 properties: {
-                    "x-api-key": { type: "string", description: "Environment API key (vex_...)" },
+                    "authorization": { type: "string", description: "Environment API key (Bearer vex_...)" },
                 },
             },
             body: {
