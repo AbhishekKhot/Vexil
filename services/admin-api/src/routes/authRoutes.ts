@@ -17,11 +17,12 @@ export default async function authRoutes(fastify: FastifyInstance) {
             summary: "Register a new user and organization",
             body: {
                 type: "object",
-                required: ["email", "password", "organizationName"],
+                required: ["email", "password", "name", "orgName"],
                 properties: {
                     email: { type: "string", format: "email" },
                     password: { type: "string", minLength: 6 },
-                    organizationName: { type: "string" },
+                    name: { type: "string" },
+                    orgName: { type: "string" },
                 },
             },
             response: {

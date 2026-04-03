@@ -53,7 +53,7 @@ export default async function segmentRoutes(fastify: FastifyInstance) {
                 type: "object",
                 properties: { projectId: { type: "string" } },
             },
-            body: { ...segmentBody, required: ["name"] },
+            body: { ...segmentBody, required: ["name", "rules"] },
             response: {
                 201: { description: "Segment created", $ref: "Segment#" },
                 404: { $ref: "Error#" },

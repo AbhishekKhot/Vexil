@@ -66,7 +66,11 @@ export const FlagsTab = () => {
     try {
       setCreating(true);
       const res = await apiClient.post(`/projects/${projectId}/flags`, {
-        key: form.key.trim().toLowerCase().replace(/\s+/g, '-'),
+        key: form.key
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, '-') // Replace spaces with hyphens
+          .replace(/[^a-z0-9-]/g, ''), // Remove any other invalid characters
         type: form.type,
         description: form.description,
       });

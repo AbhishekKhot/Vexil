@@ -58,6 +58,7 @@ export default async function flagConfigRoutes(fastify: FastifyInstance) {
             params: configParams,
             body: {
                 type: "object",
+                required: ["isEnabled"],
                 properties: {
                     isEnabled: { type: "boolean" },
                     strategyType: {

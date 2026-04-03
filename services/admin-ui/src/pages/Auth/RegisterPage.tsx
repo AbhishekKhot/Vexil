@@ -12,7 +12,7 @@ const RegisterPage: React.FC = () => {
   const [orgName, setOrgName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -22,16 +22,18 @@ const RegisterPage: React.FC = () => {
     setError(null);
 
     try {
+      console.log("Registration started")
       // 1. Register organization and user
       await apiClient.post('/auth/register', { email, password, name, orgName });
 
       // 2. Automagically log them in after registration
       const loginResponse = await apiClient.post('/auth/login', { email, password });
       const { token, user, organization } = loginResponse.data;
-      
+
       login(token, user, organization);
       navigate('/');
     } catch (err: unknown) {
+      console.log("RegisterPage : ", err);
       const error = err as { response?: { data?: { error?: string } } };
       setError(error.response?.data?.error || 'Registration failed. Please details and try again.');
     } finally {
@@ -44,7 +46,7 @@ const RegisterPage: React.FC = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <div className="flex justify-center">
           <div className="h-12 w-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-             <UserPlus className="h-6 w-6 text-white" />
+            <UserPlus className="h-6 w-6 text-white" />
           </div>
         </div>
         <h2 className="mt-6 text-3xl font-extrabold text-slate-900">

@@ -51,22 +51,38 @@ export class AnalyticsService {
     }
 
     async getAnalytics(projectId: string, environmentId?: string, flagKey?: string) {
-        // Join event → environment → project so we can filter by projectId
-        const query = this.eventRepo.createQueryBuilder("event")
-            .innerJoin(Environment, "env", "env.id = event.environmentId")
-            .select("event.flagKey", "flagKey")
-            .addSelect("COUNT(event.id)", "count")
-            .addSelect("SUM(CASE WHEN event.result = true THEN 1 ELSE 0 END)", "enabledCount")
-            .where("env.projectId = :projectId", { projectId });
+        try {
+            // Join event -> environment -> project so we can filter by projectId
+            const query = this.eventRepo.createQueryBuilder("event")
+                .innerJoin(Environment, "env", "env.id = CAST(event.environmentId AS UUID)")
+                .select("event.flagKey", "flagKey")
+                .addSelect("CAST(COUNT(event.id) AS INTEGER)", "evaluations")
+                .addSelect("CAST(COALESCE(SUM(CASE WHEN event.result = true THEN 1 ELSE 0 END), 0) AS INTEGER)", "enabled")
+                .addSelect("CAST(COALESCE(SUM(CASE WHEN event.result = false OR event.result IS NULL THEN 1 ELSE 0 END), 0) AS INTEGER)", "disabled")
+                .addSelect("CAST(COALESCE(ROUND(CAST(SUM(CASE WHEN event.result = true THEN 1 ELSE 0 END) AS NUMERIC) / NULLIF(COUNT(event.id), 0) * 100, 2), 0) AS NUMERIC)", "passRate")
+                .where("env.projectId = :projectId", { projectId });
 
-        if (environmentId) {
-            query.andWhere("event.environmentId = :environmentId", { environmentId });
+            if (environmentId) {
+                query.andWhere("event.environmentId = :environmentId", { environmentId });
+            }
+
+            if (flagKey) {
+                query.andWhere("event.flagKey = :flagKey", { flagKey });
+            }
+
+            const results = await query.groupBy("event.flagKey").getRawMany();
+            
+            // Ensure numeric fields are actually numbers (not strings from PG driver)
+            return results.map(r => ({
+                flagKey: r.flagKey,
+                evaluations: Number(r.evaluations || 0),
+                enabled: Number(r.enabled || 0),
+                disabled: Number(r.disabled || 0),
+                passRate: Number(r.passRate || 0)
+            }));
+        } catch (error) {
+            console.error("Error in getAnalytics:", error);
+            throw error;
         }
-
-        if (flagKey) {
-            query.andWhere("event.flagKey = :flagKey", { flagKey });
-        }
-
-        return await query.groupBy("event.flagKey").getRawMany();
     }
 }

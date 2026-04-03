@@ -35,10 +35,9 @@ export default async function flagRoutes(fastify: FastifyInstance) {
             },
             body: {
                 type: "object",
-                required: ["key", "name", "type"],
+                required: ["key", "type"],
                 properties: {
                     key: { type: "string", description: "Unique slug key for the flag (e.g. new-dashboard)" },
-                    name: { type: "string" },
                     description: { type: "string" },
                     type: { type: "string", enum: ["boolean", "string", "number", "json"] },
                 },

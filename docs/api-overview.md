@@ -36,7 +36,9 @@ Authenticated with environment API key (`Authorization: Bearer <vex_...>`).
 | POST | `/v1/eval` | Evaluate all flags for a context |
 | POST | `/v1/events` | Ingest evaluation event batch (SDK analytics) |
 
-## POST /v1/eval
+## POST /v1/eval (Data Plane)
+
+**Authentication:** `Authorization: Bearer <vex_...>`
 
 **Request:**
 ```json
@@ -49,31 +51,18 @@ Authenticated with environment API key (`Authorization: Bearer <vex_...>`).
 }
 ```
 
-**Response:**
-```json
-{
-  "flags": {
-    "new-dashboard": {
-      "value": true,
-      "type": "boolean",
-      "reason": "ROLLOUT_IN"
-    },
-    "ui-theme": {
-      "value": "dark",
-      "type": "string",
-      "reason": "ATTRIBUTE_MATCH"
-    }
-  }
-}
-```
+## POST /v1/events (Telemetry)
 
-## POST /v1/events
+**Authentication:** `Authorization: Bearer <vex_...>`
 
 **Request:**
 ```json
-{
-  "events": [
-    { "flagKey": "new-dashboard", "result": true, "context": { "userId": "user_123" } }
-  ]
-}
+[
+  { 
+    "flagKey": "new-dashboard", 
+    "result": true, 
+    "context": { "userId": "user_123" },
+    "timestamp": "2024-03-22T10:00:00Z"
+  }
+]
 ```
