@@ -2,7 +2,6 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { FlagConfigService } from "../services/FlagConfigService";
 import { FlagService } from "../services/FlagService";
 import { EnvironmentService } from "../services/EnvironmentService";
-import { AuditLogService } from "../services/AuditLogService";
 import { StrategyValidationError } from "../evaluation/EvaluationStrategy.interface";
 
 interface SetFlagConfigBody {
@@ -19,8 +18,7 @@ export class FlagConfigController {
     constructor(
         private readonly flagConfigService: FlagConfigService,
         private readonly flagService: FlagService,
-        private readonly environmentService: EnvironmentService,
-        private readonly auditLogService: AuditLogService
+        private readonly environmentService: EnvironmentService
     ) {}
 
     getFlagConfig = async (
@@ -62,8 +60,6 @@ export class FlagConfigController {
             if (!flag)        return reply.code(404).send({ error: "Flag not found" });
             if (!environment) return reply.code(404).send({ error: "Environment not found" });
 
-            const oldConfig = await this.flagConfigService.getFlagConfig(flagId, environmentId);
-
             const config = await this.flagConfigService.setFlagConfig({
                 flag,
                 environment,
@@ -73,23 +69,6 @@ export class FlagConfigController {
                 rules,
                 scheduledAt,
                 scheduledConfig,
-            });
-
-            await this.auditLogService.log({
-                entityType: "flag_config",
-                entityId: config.id,
-                action: "updated",
-                actorId: request.user.id,
-                actorEmail: request.user.email,
-                previousValue: oldConfig ? { ...oldConfig, flag: undefined, environment: undefined } : null,
-                newValue: { ...config, flag: undefined, environment: undefined },
-                metadata: {
-                    projectId,
-                    environmentId,
-                    environmentName: environment.name,
-                    flagId,
-                    flagKey: flag.key
-                }
             });
 
             return reply.code(200).send(config);

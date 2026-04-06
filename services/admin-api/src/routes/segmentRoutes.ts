@@ -2,22 +2,18 @@ import { FastifyInstance } from "fastify";
 import { SegmentController } from "../controllers/SegmentController";
 import { SegmentService } from "../services/SegmentService";
 import { ProjectService } from "../services/ProjectService";
-import { AuditLogService } from "../services/AuditLogService";
 import { Segment } from "../entities/Segment";
 import { Project } from "../entities/Project";
-import { AuditLog } from "../entities/AuditLog";
 import { requireRole } from "../middleware/rbacMiddleware";
 import { UserRole } from "../entities/User";
 
 export default async function segmentRoutes(fastify: FastifyInstance) {
     const segmentRepo = fastify.orm.getRepository(Segment);
     const projectRepo = fastify.orm.getRepository(Project);
-    const auditLogRepo = fastify.orm.getRepository(AuditLog);
 
     const segmentService = new SegmentService(segmentRepo);
     const projectService = new ProjectService(projectRepo);
-    const auditLogService = new AuditLogService(auditLogRepo);
-    const segmentController = new SegmentController(segmentService, projectService, auditLogService);
+    const segmentController = new SegmentController(segmentService, projectService);
 
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
     const adminOnly = requireRole([UserRole.ADMIN]);

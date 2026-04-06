@@ -7,7 +7,6 @@ import { FlagsTab } from './pages/Flags/FlagsTab';
 import { FlagConfigurePage } from './pages/Flags/FlagConfigurePage';
 import { SegmentsTab } from './pages/Segments/SegmentsTab';
 import { AnalyticsTab } from './pages/Analytics/AnalyticsTab';
-import { AuditLogTab } from './pages/AuditLogs/AuditLogTab';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -55,14 +54,11 @@ const App = () => {
                 <Route path="flags" element={<FlagsTab />} />
                 <Route path="segments" element={<SegmentsTab />} />
                 <Route path="analytics" element={<AnalyticsTab />} />
-                <Route path="activity" element={<AuditLogTab />} />
               </Route>
 
               {/* Flag Configure */}
               <Route path="/projects/:projectId/flags/:flagId/configure" element={<FlagConfigurePage />} />
 
-              {/* Settings */}
-              <Route path="/settings" element={<div className="text-xl font-bold text-slate-700 p-8">System Settings — Coming Soon</div>} />
             </Route>
           </Route>
         </Routes>

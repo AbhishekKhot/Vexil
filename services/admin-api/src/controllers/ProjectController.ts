@@ -1,31 +1,14 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { ProjectService } from "../services/ProjectService";
-import { Repository } from "typeorm";
-import { Project } from "../entities/Project";
-import { AuditLogService } from "../services/AuditLogService";
 
 export class ProjectController {
     constructor(
-        private readonly projectService: ProjectService,
-        private readonly auditLogService: AuditLogService
+        private readonly projectService: ProjectService
     ) {}
 
     createProject = async (request: FastifyRequest<{ Body: { name: string, description?: string } }>, reply: FastifyReply) => {
         try {
             const project = await this.projectService.createProject(request.user.organizationId, request.body?.name, request.body?.description);
-            
-            await this.auditLogService.log({
-                entityType: "project",
-                entityId: project.id,
-                action: "created",
-                actorId: request.user.id,
-                actorEmail: request.user.email,
-                newValue: { ...project },
-                metadata: {
-                    projectId: project.id,
-                    projectName: project.name
-                }
-            });
 
             reply.code(201).send(project);
         } catch (error: any) {
@@ -46,19 +29,6 @@ export class ProjectController {
                 reply.code(404).send({ error: "Project not found" });
                 return;
             }
-
-            await this.auditLogService.log({
-                entityType: "project",
-                entityId: project.id,
-                action: "deleted",
-                actorId: request.user.id,
-                actorEmail: request.user.email,
-                previousValue: { ...project },
-                metadata: {
-                    projectId: project.id,
-                    projectName: project.name
-                }
-            });
 
             reply.code(204).send();
         } catch (error: any) {
