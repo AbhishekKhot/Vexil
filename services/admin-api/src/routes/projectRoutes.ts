@@ -1,19 +1,15 @@
 import { FastifyInstance } from "fastify";
 import { ProjectController } from "../controllers/ProjectController";
 import { ProjectService } from "../services/ProjectService";
-import { AuditLogService } from "../services/AuditLogService";
 import { Project } from "../entities/Project";
-import { AuditLog } from "../entities/AuditLog";
 import { requireRole } from "../middleware/rbacMiddleware";
 import { UserRole } from "../entities/User";
 
 export default async function projectRoutes(fastify: FastifyInstance) {
     const projectRepo = fastify.orm.getRepository(Project);
-    const auditLogRepo = fastify.orm.getRepository(AuditLog);
 
     const projectService = new ProjectService(projectRepo);
-    const auditLogService = new AuditLogService(auditLogRepo);
-    const projectController = new ProjectController(projectService, auditLogService);
+    const projectController = new ProjectController(projectService);
 
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
     const adminOnly = requireRole([UserRole.ADMIN]);

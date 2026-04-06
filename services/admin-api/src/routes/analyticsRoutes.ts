@@ -3,18 +3,11 @@ import { AnalyticsController } from "../controllers/AnalyticsController";
 import { AnalyticsService } from "../services/AnalyticsService";
 import { Environment } from "../entities/Environment";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
-import { rabbitMQConfig } from "../utils/rabbitmq";
 
 function buildAnalyticsService(fastify: FastifyInstance) {
     const envRepo = fastify.orm.getRepository(Environment);
     const eventRepo = fastify.orm.getRepository(EvaluationEvent);
-
-    const publishFn = async (payload: any) => {
-        if (process.env.NODE_ENV === "test") return true;
-        return await rabbitMQConfig.publishEvent(payload);
-    };
-
-    return new AnalyticsService(envRepo, eventRepo, publishFn);
+    return new AnalyticsService(envRepo, eventRepo);
 }
 
 /** Data-plane: POST /v1/events — API key auth, no JWT required */

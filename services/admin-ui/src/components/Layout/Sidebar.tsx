@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Settings, Folder, LogOut, User } from 'lucide-react';
+import { Folder, LogOut, User } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { icon: Folder, label: 'Projects', to: '/projects' },
-  { icon: Settings, label: 'Settings', to: '/settings' },
 ];
 
 export const Sidebar = () => {

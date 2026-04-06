@@ -1,13 +1,11 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { FlagService } from "../services/FlagService";
 import { ProjectService } from "../services/ProjectService";
-import { AuditLogService } from "../services/AuditLogService";
 
 export class FlagController {
     constructor(
         private readonly flagService: FlagService,
-        private readonly projectService: ProjectService,
-        private readonly auditLogService: AuditLogService
+        private readonly projectService: ProjectService
     ) {}
 
     createFlag = async (
@@ -21,25 +19,11 @@ export class FlagController {
             }
 
             const flag = await this.flagService.createFlag(
-                project, 
+                project,
                 request.body?.key,
                 request.body?.type,
                 request.body?.description
             );
-
-            await this.auditLogService.log({
-                entityType: "flag",
-                entityId: flag.id,
-                action: "created",
-                actorId: (request as any).user.id,
-                actorEmail: (request as any).user.email,
-                newValue: { ...flag, project: undefined },
-                metadata: {
-                    projectId: project.id,
-                    projectName: project.name,
-                    flagKey: flag.key
-                }
-            });
 
             return reply.code(201).send(flag);
         } catch (error: any) {
@@ -92,17 +76,6 @@ export class FlagController {
 
             const updated = await this.flagService.updateFlag(request.params.flagId, request.body);
 
-            await this.auditLogService.log({
-                entityType: "flag",
-                entityId: updated.id,
-                action: "updated",
-                actorId: (request as any).user.id,
-                actorEmail: (request as any).user.email,
-                previousValue: { key: flag.key, type: flag.type, description: flag.description },
-                newValue: { key: updated.key, type: updated.type, description: updated.description },
-                metadata: { projectId: request.params.projectId, flagKey: updated.key }
-            });
-
             return reply.code(200).send(updated);
         } catch (error: any) {
             return reply.code(400).send({ error: error.message });
@@ -123,17 +96,6 @@ export class FlagController {
             if (!success) {
                 return reply.code(404).send({ error: "Flag not found" });
             }
-
-            await this.auditLogService.log({
-                entityType: "flag",
-                entityId: flag.id,
-                action: "deleted",
-                previousValue: { ...flag, project: undefined },
-                metadata: {
-                    projectId: request.params.projectId,
-                    flagKey: flag.key
-                }
-            });
 
             return reply.code(204).send();
         } catch (error: any) {

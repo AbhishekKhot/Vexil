@@ -7,12 +7,10 @@ import { Flag } from "./entities/Flag";
 import { FlagEnvironmentConfig } from "./entities/FlagEnvironmentConfig";
 import { Segment } from "./entities/Segment";
 import { EvaluationEvent } from "./entities/EvaluationEvent";
-import { AuditLog } from "./entities/AuditLog";
 import { User } from "./entities/User";
 import { Organization } from "./entities/Organization";
 import { SchedulerService } from "./services/SchedulerService";
 import { getRedisClient } from "./utils/redis";
-import { eventConsumer } from "./workers/EventConsumer";
 
 const start = async () => {
     const dataSource = new DataSource({
@@ -22,7 +20,7 @@ const start = async () => {
         username: process.env.DB_USER || "postgres",
         password: process.env.DB_PASS || "postgres",
         database: process.env.DB_NAME || "vexil",
-        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, EvaluationEvent, AuditLog, User, Organization],
+        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, EvaluationEvent, User, Organization],
         synchronize: true, // Auto-create schema for dev
         logging: false,
     });
@@ -45,15 +43,8 @@ const start = async () => {
         process.exit(1);
     }
 
-    if (process.env.RABBITMQ_URL) {
-        eventConsumer.start(process.env.RABBITMQ_URL).catch((err) =>
-            console.error("[EventConsumer] Failed to start:", err.message)
-        );
-    }
-
     process.on('SIGTERM', async () => {
         scheduler.stop();
-        await eventConsumer.stop();
         redisClient.quit();
     });
 };

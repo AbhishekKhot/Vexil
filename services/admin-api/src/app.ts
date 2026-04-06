@@ -51,7 +51,6 @@ export async function buildApp(dataSource: DataSource) {
         api.register(flagRoutes, { prefix: "/projects" });
         api.register(flagConfigRoutes, { prefix: "/projects" });
         api.register(segmentRoutes, { prefix: "/projects" });
-        api.register(require("./routes/auditLogRoutes").default, { prefix: "/projects" });
         // Analytics stats (JWT-protected, per-project)
         const { analyticsControlRoutes } = require("./routes/analyticsRoutes");
         api.register(analyticsControlRoutes, { prefix: "/projects" });

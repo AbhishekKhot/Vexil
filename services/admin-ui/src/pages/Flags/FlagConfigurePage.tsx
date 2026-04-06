@@ -319,12 +319,6 @@ export const FlagConfigurePage = () => {
         {flag?.description && <p className="text-slate-500 mt-1">{flag.description}</p>}
         <div className="flex items-center gap-4 mt-2">
           <p className="text-sm text-slate-400">Configure evaluation strategies per environment.</p>
-          <a
-            href={`/projects/${projectId}/activity`}
-            className="text-sm font-semibold text-primary-600 hover:text-primary-700 underline underline-offset-2 flex items-center gap-1"
-          >
-            View change history for this flag
-          </a>
         </div>
       </div>
 

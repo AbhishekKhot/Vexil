@@ -5,8 +5,10 @@ import { apiClient } from '../../api/client';
 
 interface Stat {
   flagKey: string;
-  count: string | number;
-  enabledCount: string | number;
+  evaluations: number;
+  enabled: number;
+  disabled: number;
+  passRate: number;
 }
 
 interface Environment {
@@ -130,9 +132,9 @@ export const AnalyticsTab = () => {
       ) : (
         <div className="grid grid-cols-1 gap-4 overflow-y-auto pr-1">
           {filtered.map((stat) => {
-            const total = Number(stat.count);
-            const enabled = Number(stat.enabledCount);
-            const disabled = total - enabled;
+            const total = stat.evaluations;
+            const enabled = stat.enabled;
+            const disabled = stat.disabled;
             const enabledRate = total > 0 ? Math.round((enabled / total) * 100) : 0;
 
             return (

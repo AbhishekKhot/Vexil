@@ -1,14 +1,11 @@
 import { Repository } from "typeorm";
 import { Environment } from "../entities/Environment";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
-import { Project } from "../entities/Project";
 
 export class AnalyticsService {
     constructor(
         private environmentRepo: Repository<Environment>,
-        private eventRepo: Repository<EvaluationEvent>,
-        private publishFn: (payload: any) => Promise<boolean>,
-        private projectRepo?: Repository<Project>
+        private eventRepo: Repository<EvaluationEvent>
     ) {}
 
     async ingestEvents(apiKey: string, events: any[]): Promise<boolean> {
@@ -25,16 +22,7 @@ export class AnalyticsService {
             return false;
         }
 
-        const payload = {
-            environmentId: environment.id,
-            ingestedAt: new Date().toISOString(),
-            events
-        };
-
-        // 1. Publish to RabbitMQ queue via provided publisher function
-        await this.publishFn(payload);
-
-        // 2. Store in PostgreSQL for Dashboard querying
+        // Store in PostgreSQL for Dashboard querying
         const evaluationEvents = events.map(evt => ({
             environmentId: environment.id,
             flagKey: evt.flagKey,

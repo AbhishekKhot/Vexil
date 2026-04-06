@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, Flag, Users, AlertCircle, Loader2, BarChart3, Activity } from 'lucide-react';
+import { ArrowLeft, Server, Flag, Users, AlertCircle, Loader2, BarChart3 } from 'lucide-react';
 import { apiClient } from '../../api/client';
 import { cn } from '../../utils/cn';
 
@@ -16,7 +16,6 @@ const tabs = [
   { label: 'Flags', icon: Flag, to: 'flags' },
   { label: 'Segments', icon: Users, to: 'segments' },
   { label: 'Analytics', icon: BarChart3, to: 'analytics' },
-  { label: 'Activity', icon: Activity, to: 'activity' },
 ];
 
 export const ProjectDetail = () => {
@@ -30,14 +29,8 @@ export const ProjectDetail = () => {
     const fetchProject = async () => {
       try {
         setLoading(true);
-        // Fetch from project list and find by ID (no single-project endpoint exists)
-        const res = await apiClient.get('/projects');
-        const found = res.data.find((p: Project) => p.id === projectId);
-        if (!found) {
-          setError('Project not found.');
-        } else {
-          setProject(found);
-        }
+        const res = await apiClient.get(`/projects/${projectId}`);
+        setProject(res.data);
       } catch {
         setError('Failed to load project details.');
       } finally {
