@@ -1,16 +1,20 @@
 {
   "name": "vexil",
   "version": "1.0.0",
-  "description": "> **Vexil** — A high-performance, open-source feature flag and remote configuration service with local evaluation and deterministic rollouts.",
-  "main": "index.js",
+  "description": "High-performance, open-source feature flag service with local evaluation and deterministic rollouts.",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "build:api": "npm run build --workspace=apps/api",
+    "build:web": "npm run build --workspace=apps/web",
+    "build:sdk": "npm run build --workspace=packages/sdk-js",
+    "build": "npm run build:sdk && npm run build:api && npm run build:web"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["feature-flags", "feature-toggles", "remote-config"],
+  "license": "MIT",
   "workspaces": [
-    "services/*",
+    "apps/*",
     "packages/*"
   ]
 }
