@@ -7,7 +7,8 @@ export class EnvironmentController {
 
     createEnvironment = async (request: FastifyRequest<{ Params: { projectId: string }; Body: { name: string } }>, reply: FastifyReply) => {
         try {
-            const project = await this.projectService.getProject(request.params.projectId);
+            // Pass organizationId to prevent creating environments in another org's project.
+            const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
             if (!project) return reply.code(404).send({ error: "Project not found" });
             const env = await this.envService.createEnvironment(project, request.body?.name);
             return reply.code(201).send(env);
@@ -15,7 +16,7 @@ export class EnvironmentController {
     };
 
     listEnvironments = async (request: FastifyRequest<{ Params: { projectId: string } }>, reply: FastifyReply) => {
-        const project = await this.projectService.getProject(request.params.projectId);
+        const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
         if (!project) return reply.code(404).send({ error: "Project not found" });
         const envs = await this.envService.listEnvironments(project.id);
         return reply.code(200).send(envs);
@@ -31,6 +32,9 @@ export class EnvironmentController {
     };
 
     deleteEnvironment = async (request: FastifyRequest<{ Params: { projectId: string; id: string } }>, reply: FastifyReply) => {
+        // Verify env belongs to this project before deleting.
+        const env = await this.envService.getEnvironment(request.params.id);
+        if (!env || env.project.id !== request.params.projectId) return reply.code(404).send({ error: "Environment not found" });
         const success = await this.envService.deleteEnvironment(request.params.id);
         if (!success) return reply.code(404).send({ error: "Environment not found" });
         return reply.code(204).send();

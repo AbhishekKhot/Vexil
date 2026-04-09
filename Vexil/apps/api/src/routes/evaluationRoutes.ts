@@ -4,6 +4,8 @@ import { EvaluationService } from "../services/EvaluationService";
 import { Environment } from "../entities/Environment";
 import { FlagEnvironmentConfig } from "../entities/FlagEnvironmentConfig";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
+import { makeEvalThrottle } from "../middleware/evalThrottle";
+import { LIMITS } from "../app";
 
 export default async function evaluationRoutes(fastify: FastifyInstance) {
     const ctrl = new EvaluationController(
@@ -15,7 +17,11 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
         )
     );
 
+    const evalThrottle = makeEvalThrottle(fastify.redis);
+
     fastify.post("/flags/evaluate", {
+        config: { rateLimit: LIMITS.evaluate },
+        preHandler: [evalThrottle],
         schema: {
             tags: ["Evaluation"],
             summary: "Evaluate all flags for environment",
@@ -23,10 +29,7 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
             body: {
                 type: "object",
                 properties: {
-                    context: {
-                        type: "object",
-                        description: "Evaluation context (userId, attributes, etc.)"
-                    }
+                    context: { type: "object", description: "Evaluation context (userId, attributes, etc.)" }
                 }
             }
         }

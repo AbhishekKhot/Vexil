@@ -58,12 +58,26 @@ export class EvaluationService {
         return env;
     }
 
-    /** Batch-inserts one event per evaluated flag for analytics. Context is stored for segmentation queries. */
+    /**
+     * Batch-inserts one event per evaluated flag for analytics.
+     * M5: Strip PII fields (userId, email, name, phone, ip) before storing context.
+     * Only non-identifying attributes are kept for segmentation queries.
+     */
     private async logEvents(environmentId: string, flags: Record<string, FlagEvaluationOutput>, context: Record<string, unknown>): Promise<void> {
+        const safeContext = this.stripPii(context);
         const events = Object.entries(flags).map(([flagKey, result]) => ({
             environmentId, flagKey, result: Boolean(result.value),
-            context: Object.keys(context).length > 0 ? context : undefined,
+            context: Object.keys(safeContext).length > 0 ? safeContext : undefined,
         }));
         if (events.length > 0) await this.eventRepo.insert(events as any);
+    }
+
+    private static readonly PII_KEYS = new Set(["userId","user_id","email","name","phone","ip","ipAddress","address","ssn","dob","dateOfBirth","identifier"]);
+
+    /** Returns a shallow copy of context with known PII keys removed. */
+    private stripPii(context: Record<string, unknown>): Record<string, unknown> {
+        return Object.fromEntries(
+            Object.entries(context).filter(([k]) => !EvaluationService.PII_KEYS.has(k))
+        );
     }
 }

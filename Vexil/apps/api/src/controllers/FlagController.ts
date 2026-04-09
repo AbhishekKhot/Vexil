@@ -7,7 +7,9 @@ export class FlagController {
 
     createFlag = async (request: FastifyRequest<{ Params: { projectId: string }; Body: { key: string; type?: string; description?: string } }>, reply: FastifyReply) => {
         try {
-            const project = await this.projectService.getProject(request.params.projectId);
+            // H7: Pass organizationId so getProject validates org ownership — prevents creating
+            // flags in projects that belong to a different org.
+            const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
             if (!project) return reply.code(404).send({ error: "Project not found" });
             const flag = await this.flagService.createFlag(project, request.body?.key, request.body?.type, request.body?.description);
             return reply.code(201).send(flag);
@@ -15,7 +17,7 @@ export class FlagController {
     };
 
     listFlags = async (request: FastifyRequest<{ Params: { projectId: string } }>, reply: FastifyReply) => {
-        const project = await this.projectService.getProject(request.params.projectId);
+        const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
         if (!project) return reply.code(404).send({ error: "Project not found" });
         return reply.code(200).send(await this.flagService.listFlags(project.id));
     };
@@ -35,6 +37,9 @@ export class FlagController {
     };
 
     deleteFlag = async (request: FastifyRequest<{ Params: { projectId: string; id: string } }>, reply: FastifyReply) => {
+        // H7: Verify the flag belongs to this project (and thus this org) before deleting.
+        const flag = await this.flagService.getFlag(request.params.id);
+        if (!flag || flag.project.id !== request.params.projectId) return reply.code(404).send({ error: "Flag not found" });
         const success = await this.flagService.deleteFlag(request.params.id);
         if (!success) return reply.code(404).send({ error: "Flag not found" });
         return reply.code(204).send();

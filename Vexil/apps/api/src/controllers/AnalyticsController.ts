@@ -19,7 +19,13 @@ export class AnalyticsController {
 
     getAnalytics = async (request: FastifyRequest<{ Params: { projectId: string }; Querystring: { environmentId?: string; flagKey?: string } }>, reply: FastifyReply) => {
         try {
-            const stats = await this.analyticsService.getAnalytics(request.params.projectId, request.query.environmentId, request.query.flagKey);
+            // H5: Pass organizationId so AnalyticsService can verify project ownership.
+            const stats = await this.analyticsService.getAnalytics(
+                request.params.projectId,
+                request.user.organizationId,
+                request.query.environmentId,
+                request.query.flagKey
+            );
             return reply.code(200).send(stats);
         } catch { return reply.code(500).send({ error: "Internal Server Error" }); }
     };

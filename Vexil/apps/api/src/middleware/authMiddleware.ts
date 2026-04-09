@@ -18,7 +18,7 @@ declare module 'fastify' {
  * The API key path (/v1/*) uses a separate auth mechanism in evaluationRoutes.
  */
 export const authMiddleware = (fastify: FastifyInstance) => {
-    const jwtSecret = process.env.JWT_SECRET || "vexil-dev-secret-change-in-prod";
+    const jwtSecret = process.env.JWT_SECRET!; // Guaranteed non-empty — server.ts exits if missing.
     fastify.decorate("authenticate", async (request: FastifyRequest, reply: FastifyReply) => {
         try {
             const authHeader = request.headers.authorization;

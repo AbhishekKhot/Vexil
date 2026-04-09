@@ -8,6 +8,7 @@ export class AuthController {
         try {
             const { email, password, name, orgName } = request.body;
             if (!email || !password || !name || !orgName) return reply.code(400).send({ error: "Missing required fields" });
+            // M3: Validation (email format + min password) is enforced in AuthService.register().
             const result = await this.authService.register(email, password, name, orgName);
             return reply.code(201).send(result);
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
@@ -24,9 +25,10 @@ export class AuthController {
 
     me = async (request: FastifyRequest, reply: FastifyReply) => {
         try {
-            const user = await this.authService.getUserById((request as any).user.id);
-            if (!user) return reply.code(404).send({ error: "User not found" });
-            return reply.code(200).send(user);
+            // M2: getUserById now returns an explicit safe projection, never the raw entity.
+            const result = await this.authService.getUserById(request.user.id);
+            if (!result) return reply.code(404).send({ error: "User not found" });
+            return reply.code(200).send(result);
         } catch { return reply.code(500).send({ error: "Internal Server Error" }); }
     };
 }

@@ -60,8 +60,9 @@ export class FlagConfigService {
         }
 
         const saved = await this.configRepo.save(config);
-        // Bust the cache so EvaluationService picks up the new config on the next request.
-        this.redis.del(`env_configs:${environment.id}`).catch(() => {});
+        // M4: Await cache bust — fire-and-forget could serve a stale config for up to 30s
+        // if the del silently fails right after a save.
+        await this.redis.del(`env_configs:${environment.id}`).catch(() => {});
         return saved;
     }
 }

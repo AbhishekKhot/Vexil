@@ -4,6 +4,7 @@ import { AuditLogService } from "../services/AuditLogService";
 import { AuditLog } from "../entities/AuditLog";
 import { requireRole } from "../middleware/rbacMiddleware";
 import { UserRole } from "../entities/User";
+import { LIMITS } from "../app";
 
 export default async function auditLogRoutes(fastify: FastifyInstance) {
     const ctrl = new AuditLogController(
@@ -13,6 +14,7 @@ export default async function auditLogRoutes(fastify: FastifyInstance) {
     const s = [{ bearerAuth: [] }];
 
     fastify.get("/:projectId/audit-logs", {
+        config: { rateLimit: LIMITS.controlRead },
         preHandler: [viewer],
         schema: {
             tags: ["Audit Logs"],
@@ -31,6 +33,7 @@ export default async function auditLogRoutes(fastify: FastifyInstance) {
     }, ctrl.getLogs as any);
 
     fastify.get("/:projectId/audit-logs/:id", {
+        config: { rateLimit: LIMITS.controlRead },
         preHandler: [viewer],
         schema: { tags: ["Audit Logs"], summary: "Get audit log by ID", security: s }
     }, ctrl.getLogById as any);

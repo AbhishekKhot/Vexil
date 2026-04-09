@@ -14,6 +14,11 @@ import { SchedulerService } from "./services/SchedulerService";
 import { getRedisClient } from "./utils/redis";
 
 const start = async () => {
+    // Fail fast — never fall back to a hardcoded secret in any environment.
+    if (!process.env.JWT_SECRET) {
+        console.error("[Startup] FATAL: JWT_SECRET environment variable is not set. Refusing to start.");
+        process.exit(1);
+    }
     const dataSource = new DataSource({
         type: "postgres",
         host: process.env.DB_HOST || "127.0.0.1",
