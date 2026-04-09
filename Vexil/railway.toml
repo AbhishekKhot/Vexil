@@ -1,0 +1,55 @@
+# Railway multi-service deployment config for Vexil
+# Docs: https://docs.railway.com/reference/config-as-code
+#
+# Services deployed:
+#   api  — Fastify backend  (apps/api)
+#   web  — React frontend   (apps/web)
+#
+# Infrastructure (add via Railway dashboard):
+#   - PostgreSQL plugin
+#   - Redis plugin
+#
+# Required environment variables per service:
+#
+#   api:
+#     DATABASE_URL   (provided by Railway PostgreSQL plugin)
+#     REDIS_URL      (provided by Railway Redis plugin)
+#     JWT_SECRET     (set manually — use a strong random value)
+#     NODE_ENV       production
+#     PORT           3000
+#
+#   web:
+#     VITE_API_BASE_URL  (set to the deployed api Railway URL)
+
+[build]
+builder = "DOCKERFILE"
+
+# ── API service ───────────────────────────────────────────────────────────────
+[[services]]
+name = "api"
+source = "apps/api"
+
+[services.build]
+dockerfilePath = "apps/api/Dockerfile"
+buildContext = "."
+
+[services.deploy]
+startCommand = "node dist/server.js"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# ── Web service ───────────────────────────────────────────────────────────────
+[[services]]
+name = "web"
+source = "apps/web"
+
+[services.build]
+dockerfilePath = "apps/web/Dockerfile"
+buildContext = "."
+
+[services.deploy]
+startCommand = "nginx -g 'daemon off;'"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
