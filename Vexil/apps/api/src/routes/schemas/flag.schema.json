@@ -1,0 +1,40 @@
+{
+  "createFlag": {
+    "tags": ["Flags"],
+    "summary": "Create flag",
+    "security": [{ "bearerAuth": [] }],
+    "body": {
+      "type": "object",
+      "required": ["key", "type"],
+      "properties": {
+        "key":         { "type": "string", "description": "Unique slug (e.g. new-dashboard). Lowercase letters, digits, hyphens only." },
+        "type":        { "type": "string", "enum": ["boolean", "string", "number", "json"] },
+        "description": { "type": "string" }
+      }
+    }
+  },
+
+  "listFlags": {
+    "tags": ["Flags"],
+    "summary": "List flags",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "getFlag": {
+    "tags": ["Flags"],
+    "summary": "Get flag",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "updateFlag": {
+    "tags": ["Flags"],
+    "summary": "Update flag",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "deleteFlag": {
+    "tags": ["Flags"],
+    "summary": "Delete flag",
+    "security": [{ "bearerAuth": [] }]
+  }
+}

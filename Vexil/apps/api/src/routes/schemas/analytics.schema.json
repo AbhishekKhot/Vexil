@@ -1,0 +1,34 @@
+{
+  "ingest": {
+    "tags": ["Analytics"],
+    "summary": "Ingest evaluation events",
+    "description": "Authenticate with your environment API key as a Bearer token. Accepts up to 500 events per request. The SDK flushes its in-memory buffer here every 30 seconds or when 1 000 events accumulate.",
+    "body": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "required": ["flagKey", "result"],
+        "properties": {
+          "flagKey":   { "type": "string", "maxLength": 128 },
+          "result":    { "type": "boolean" },
+          "context":   { "type": "object" },
+          "timestamp": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "getAnalytics": {
+    "tags": ["Analytics"],
+    "summary": "Get flag evaluation stats for a project",
+    "security": [{ "bearerAuth": [] }],
+    "querystring": {
+      "type": "object",
+      "properties": {
+        "environmentId": { "type": "string", "description": "Filter to a single environment." },
+        "flagKey":       { "type": "string", "description": "Filter to a single flag key." }
+      }
+    }
+  }
+}
