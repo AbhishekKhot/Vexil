@@ -6,6 +6,7 @@ import { FlagEnvironmentConfig } from "../entities/FlagEnvironmentConfig";
 import { EvaluationEvent } from "../entities/EvaluationEvent";
 import { makeEvalThrottle } from "../middleware/evalThrottle";
 import { LIMITS } from "../app";
+import evaluationSchemas from "./schemas/evaluation.schema.json";
 
 export default async function evaluationRoutes(fastify: FastifyInstance) {
     const ctrl = new EvaluationController(
@@ -13,25 +14,17 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
             fastify.orm.getRepository(Environment),
             fastify.orm.getRepository(FlagEnvironmentConfig),
             fastify.orm.getRepository(EvaluationEvent),
-            fastify.redis
-        )
+            fastify.redis,
+        ),
     );
 
+    // evalThrottle enforces a per-API-key daily cap (MAX_EVAL_PER_DAY env var)
+    // on top of the global rate limiter, giving per-environment quota control.
     const evalThrottle = makeEvalThrottle(fastify.redis);
 
     fastify.post("/flags/evaluate", {
-        config: { rateLimit: LIMITS.evaluate },
+        config:     { rateLimit: LIMITS.evaluate },
         preHandler: [evalThrottle],
-        schema: {
-            tags: ["Evaluation"],
-            summary: "Evaluate all flags for environment",
-            description: "Pass environment API key as Bearer token. Returns all flag values for the given evaluation context.",
-            body: {
-                type: "object",
-                properties: {
-                    context: { type: "object", description: "Evaluation context (userId, attributes, etc.)" }
-                }
-            }
-        }
+        schema:     evaluationSchemas.eval,
     }, ctrl.eval as any);
 }

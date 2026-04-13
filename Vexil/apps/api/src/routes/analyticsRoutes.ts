@@ -7,63 +7,42 @@ import { Project } from "../entities/Project";
 import { requireRole } from "../middleware/rbacMiddleware";
 import { UserRole } from "../entities/User";
 import { LIMITS } from "../app";
+import analyticsSchemas from "./schemas/analytics.schema.json";
 
-function makeCtrl(fastify: FastifyInstance) {
-    return new AnalyticsController(
-        new AnalyticsService(
-            fastify.orm.getRepository(Environment),
-            fastify.orm.getRepository(EvaluationEvent),
-            fastify.orm.getRepository(Project)
-        )
+/** Builds the AnalyticsService from the Fastify ORM context. */
+function makeService(fastify: FastifyInstance) {
+    return new AnalyticsService(
+        fastify.orm.getRepository(Environment),
+        fastify.orm.getRepository(EvaluationEvent),
+        fastify.orm.getRepository(Project),
     );
 }
 
+/**
+ * Data-plane: POST /v1/events
+ * Authenticated with environment API key (Bearer vex_…).
+ * SDK clients flush their in-memory event buffers here.
+ */
 export async function analyticsDataRoutes(fastify: FastifyInstance) {
-    const ctrl = makeCtrl(fastify);
+    const ctrl = new AnalyticsController(makeService(fastify));
 
     fastify.post("/events", {
         config: { rateLimit: LIMITS.events },
-        schema: {
-            tags: ["Analytics"],
-            summary: "Ingest evaluation events",
-            description: "Pass environment API key as Bearer token. Max 500 events per request.",
-            body: {
-                type: "array",
-                maxItems: 500,
-                items: {
-                    type: "object",
-                    required: ["flagKey", "result"],
-                    properties: {
-                        flagKey: { type: "string", maxLength: 128 },
-                        result: { type: "boolean" },
-                        context: { type: "object" },
-                        timestamp: { type: "string" }
-                    }
-                }
-            }
-        }
+        schema: analyticsSchemas.ingest,
     }, ctrl.ingest as any);
 }
 
+/**
+ * Control-plane: GET /api/projects/:projectId/stats
+ * JWT-protected; available to all roles (VIEWER included) for read-only dashboard use.
+ */
 export async function analyticsControlRoutes(fastify: FastifyInstance) {
-    const ctrl = makeCtrl(fastify);
+    const ctrl   = new AnalyticsController(makeService(fastify));
     const viewer = requireRole([UserRole.ADMIN, UserRole.MEMBER, UserRole.VIEWER]);
-    const s = [{ bearerAuth: [] }];
 
     fastify.get("/:projectId/stats", {
-        config: { rateLimit: LIMITS.controlRead },
+        config:     { rateLimit: LIMITS.controlRead },
         preHandler: [viewer],
-        schema: {
-            tags: ["Analytics"],
-            summary: "Get flag analytics for project",
-            security: s,
-            querystring: {
-                type: "object",
-                properties: {
-                    environmentId: { type: "string" },
-                    flagKey: { type: "string" }
-                }
-            }
-        }
+        schema:     analyticsSchemas.getAnalytics,
     }, ctrl.getAnalytics as any);
 }
