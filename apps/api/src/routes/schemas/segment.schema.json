@@ -1,0 +1,52 @@
+{
+  "listSegments": {
+    "tags": ["Segments"],
+    "summary": "List segments for project",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "createSegment": {
+    "tags": ["Segments"],
+    "summary": "Create segment",
+    "security": [{ "bearerAuth": [] }],
+    "body": {
+      "type": "object",
+      "required": ["name", "rules"],
+      "properties": {
+        "name":        { "type": "string" },
+        "description": { "type": "string" },
+        "rules": {
+          "type": "array",
+          "description": "Targeting rules evaluated with AND logic.",
+          "items": {
+            "type": "object",
+            "required": ["attribute", "operator", "values"],
+            "properties": {
+              "attribute": { "type": "string" },
+              "operator":  { "type": "string", "enum": ["in", "not_in", "eq", "neq", "contains", "gt", "lt"] },
+              "values":    { "type": "array" }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "getSegment": {
+    "tags": ["Segments"],
+    "summary": "Get segment by ID",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "updateSegment": {
+    "tags": ["Segments"],
+    "summary": "Update segment",
+    "security": [{ "bearerAuth": [] }]
+  },
+
+  "deleteSegment": {
+    "tags": ["Segments"],
+    "summary": "Delete segment",
+    "security": [{ "bearerAuth": [] }]
+  }
+}

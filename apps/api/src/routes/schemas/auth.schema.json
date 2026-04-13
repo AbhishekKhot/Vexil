@@ -1,0 +1,35 @@
+{
+  "register": {
+    "tags": ["Auth"],
+    "summary": "Register user and organization",
+    "body": {
+      "type": "object",
+      "required": ["email", "password", "name", "orgName"],
+      "properties": {
+        "email":    { "type": "string" },
+        "password": { "type": "string" },
+        "name":     { "type": "string" },
+        "orgName":  { "type": "string" }
+      }
+    }
+  },
+
+  "login": {
+    "tags": ["Auth"],
+    "summary": "Login",
+    "body": {
+      "type": "object",
+      "required": ["email", "password"],
+      "properties": {
+        "email":    { "type": "string" },
+        "password": { "type": "string" }
+      }
+    }
+  },
+
+  "me": {
+    "tags": ["Auth"],
+    "summary": "Current user",
+    "security": [{ "bearerAuth": [] }]
+  }
+}
