@@ -10,7 +10,7 @@ export interface CreateAuditLogParams {
 }
 
 export class AuditLogService {
-    constructor(private readonly auditLogRepo: Repository<AuditLog>) {}
+    constructor(private readonly auditLogRepo: Repository<AuditLog>) { }
 
     async log(params: CreateAuditLogParams): Promise<AuditLog> {
         return this.auditLogRepo.save(this.auditLogRepo.create({ ...params, previousValue: params.previousValue || undefined, newValue: params.newValue || undefined }));
@@ -34,7 +34,7 @@ export class AuditLogService {
         const log = await this.auditLogRepo.findOne({ where: { id } });
         if (!log) return null;
         // Logs store projectId in metadata — verify it matches the URL param.
-        if ((log.metadata as any)?.projectId !== projectId) return null;
+        if ((log.metadata as any) ?.projectId !== projectId) return null;
         return log;
     }
 }

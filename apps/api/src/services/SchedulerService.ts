@@ -10,7 +10,7 @@ import Redis from "ioredis";
 export class SchedulerService {
     private timer: NodeJS.Timeout | null = null;
 
-    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>, private readonly redis?: Redis) {}
+    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>, private readonly redis?: Redis) { }
 
     start() {
         if (this.timer) return;
@@ -39,8 +39,8 @@ export class SchedulerService {
                 config.scheduledAt = undefined;
                 (config as any).scheduledConfig = null;
                 await this.configRepo.save(config);
-                if (config.environment?.id && this.redis)
-                    this.redis.del(`env_configs:${config.environment.id}`).catch(() => {});
+                if (config.environment ?.id && this.redis)
+                    this.redis.del(`env_configs:${config.environment.id}`).catch(() => { });
             }
         } catch (err) {
             console.error("[SchedulerService]", err);

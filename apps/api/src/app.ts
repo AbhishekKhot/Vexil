@@ -30,18 +30,18 @@ declare module 'fastify' {
 // Raise these values if you deploy for real users.
 const LIMITS = {
     // Auth: prevent brute-force and org-spam
-    register:     { max: 5,   timeWindow: 24 * 60 * 60 * 1000 }, // 5/day per IP
-    login:        { max: 10,  timeWindow: 15 * 60 * 1000       }, // 10/15min per IP
-    authGeneral:  { max: 30,  timeWindow: 60 * 60 * 1000       }, // 30/hr per IP (GET /me etc.)
+    register: { max: 5, timeWindow: 24 * 60 * 60 * 1000 }, // 5/day per IP
+    login: { max: 10, timeWindow: 15 * 60 * 1000 }, // 10/15min per IP
+    authGeneral: { max: 30, timeWindow: 60 * 60 * 1000 }, // 30/hr per IP (GET /me etc.)
 
     // Control plane: dashboard CRUD operations
-    controlWrite: { max: 50,  timeWindow: 24 * 60 * 60 * 1000 }, // 50 writes/day per user
-    controlRead:  { max: 200, timeWindow: 24 * 60 * 60 * 1000 }, // 200 reads/day per user
+    controlWrite: { max: 50, timeWindow: 24 * 60 * 60 * 1000 }, // 50 writes/day per user
+    controlRead: { max: 200, timeWindow: 24 * 60 * 60 * 1000 }, // 200 reads/day per user
 
     // Data plane: SDK evaluation — SDK polls every 30s, so 50/day ≈ 25min of polling
     // Raise MAX_EVAL_PER_DAY env var if needed for demos without redeploying.
-    evaluate:     { max: parseInt(process.env.MAX_EVAL_PER_DAY || "100", 10), timeWindow: 24 * 60 * 60 * 1000 },
-    events:       { max: 50,  timeWindow: 24 * 60 * 60 * 1000 }, // 50 event batches/day per key
+    evaluate: { max: parseInt(process.env.MAX_EVAL_PER_DAY || "100", 10), timeWindow: 24 * 60 * 60 * 1000 },
+    events: { max: 50, timeWindow: 24 * 60 * 60 * 1000 }, // 50 event batches/day per key
 } as const;
 
 /**
@@ -81,7 +81,7 @@ export async function buildApp(dataSource: DataSource) {
             // Use Authorization header as key for data plane (API-key-scoped limiting).
             // Fall back to IP for auth/control plane.
             const auth = req.headers.authorization;
-            if (auth?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`; // first 16 chars of key
+            if (auth ?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`; // first 16 chars of key
             return `rl:${req.ip}`;
         },
         errorResponseBuilder: () => ({

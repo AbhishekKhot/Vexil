@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { AuditLogService } from "../services/AuditLogService";
 
 export class AuditLogController {
-    constructor(private readonly auditLogService: AuditLogService) {}
+    constructor(private readonly auditLogService: AuditLogService) { }
 
     getLogs = async (request: FastifyRequest<{ Params: { projectId: string }; Querystring: { page?: string; limit?: string; action?: string; entityType?: string } }>, reply: FastifyReply) => {
         try {

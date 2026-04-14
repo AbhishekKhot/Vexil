@@ -18,7 +18,7 @@ async function buildApp() {
 
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         // Distinguish between API key (vex_) and JWT
         if (auth.startsWith("Bearer vex_")) {
             req.user = { id: "u1", organizationId: "org-1", role: UserRole.ADMIN };

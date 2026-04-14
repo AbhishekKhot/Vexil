@@ -10,7 +10,7 @@
  * callers can respond with 401 before touching any service.
  */
 export function extractApiKey(authHeader: string | undefined): string | null {
-    if (!authHeader?.startsWith("Bearer ")) return null;
+    if (!authHeader ?.startsWith("Bearer ")) return null;
     const key = authHeader.slice(7).trim();
     return key.length > 0 ? key : null;
 }

@@ -14,7 +14,7 @@ export interface FlagEvaluationOutput {
 }
 
 export class EvaluationEngine {
-    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>) {}
+    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>) { }
 
     /**
      * Evaluates all flag configs for an environment against the given context.

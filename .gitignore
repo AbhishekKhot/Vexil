@@ -4,3 +4,7 @@ coverage/
 .env
 .DS_Store
 *.log
+*.sqlite
+.vscode
+CLAUDE.md
+.DS_Store

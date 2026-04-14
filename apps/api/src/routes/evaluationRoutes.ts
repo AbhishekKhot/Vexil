@@ -23,8 +23,8 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
     const evalThrottle = makeEvalThrottle(fastify.redis);
 
     fastify.post("/flags/evaluate", {
-        config:     { rateLimit: LIMITS.evaluate },
+        config: { rateLimit: LIMITS.evaluate },
         preHandler: [evalThrottle],
-        schema:     evaluationSchemas.eval,
+        schema: evaluationSchemas.eval,
     }, ctrl.eval as any);
 }

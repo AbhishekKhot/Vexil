@@ -3,7 +3,7 @@ import { Segment } from "../entities/Segment";
 import { Project } from "../entities/Project";
 
 export class SegmentService {
-    constructor(private readonly segmentRepo: Repository<Segment>) {}
+    constructor(private readonly segmentRepo: Repository<Segment>) { }
 
     async createSegment(project: Project, name: string, rules: unknown, description?: string): Promise<Segment> {
         if (!name || name.trim().length < 2) throw new Error("Segment name must be at least 2 characters");

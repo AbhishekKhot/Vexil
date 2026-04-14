@@ -33,15 +33,15 @@ export class EvaluationService {
         if (cached) {
             configs = JSON.parse(cached) as FlagEnvironmentConfig[];
         } else {
-            configs = await this.configRepo.find({ where: { environment: { id: environment.id } }, relations: ["flag","environment"] });
-            this.redis.set(cacheKey, JSON.stringify(configs), "EX", 30).catch(() => {});
+            configs = await this.configRepo.find({ where: { environment: { id: environment.id } }, relations: ["flag", "environment"] });
+            this.redis.set(cacheKey, JSON.stringify(configs), "EX", 30).catch(() => { });
         }
 
         const ctx = context ?? {};
         const { flags } = await this.engine.evaluate(configs, ctx);
 
         // Log evaluation events asynchronously — failures here must not affect the response.
-        this.logEvents(environment.id, flags, ctx).catch(() => {});
+        this.logEvents(environment.id, flags, ctx).catch(() => { });
         return flags;
     }
 
@@ -54,7 +54,7 @@ export class EvaluationService {
         const cached = await this.redis.get(cacheKey).catch(() => null);
         if (cached) return JSON.parse(cached) as Environment;
         const env = await this.environmentRepo.findOne({ where: { apiKey }, relations: ["project"] });
-        if (env) this.redis.set(cacheKey, JSON.stringify(env), "EX", 300).catch(() => {});
+        if (env) this.redis.set(cacheKey, JSON.stringify(env), "EX", 300).catch(() => { });
         return env;
     }
 
@@ -72,7 +72,7 @@ export class EvaluationService {
         if (events.length > 0) await this.eventRepo.insert(events as any);
     }
 
-    private static readonly PII_KEYS = new Set(["userId","user_id","email","name","phone","ip","ipAddress","address","ssn","dob","dateOfBirth","identifier"]);
+    private static readonly PII_KEYS = new Set(["userId", "user_id", "email", "name", "phone", "ip", "ipAddress", "address", "ssn", "dob", "dateOfBirth", "identifier"]);
 
     /** Returns a shallow copy of context with known PII keys removed. */
     private stripPii(context: Record<string, unknown>): Record<string, unknown> {

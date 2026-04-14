@@ -3,13 +3,13 @@ import { SegmentService } from "../services/SegmentService";
 import { ProjectService } from "../services/ProjectService";
 
 export class SegmentController {
-    constructor(private readonly segmentService: SegmentService, private readonly projectService: ProjectService) {}
+    constructor(private readonly segmentService: SegmentService, private readonly projectService: ProjectService) { }
 
     createSegment = async (request: FastifyRequest<{ Params: { projectId: string }; Body: { name: string; rules: unknown; description?: string } }>, reply: FastifyReply) => {
         try {
             const project = await this.projectService.getProject(request.params.projectId);
             if (!project) return reply.code(404).send({ error: "Project not found" });
-            return reply.code(201).send(await this.segmentService.createSegment(project, request.body?.name, request.body?.rules, request.body?.description));
+            return reply.code(201).send(await this.segmentService.createSegment(project, request.body ?.name, request.body ?.rules, request.body ?.description));
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
     };
 

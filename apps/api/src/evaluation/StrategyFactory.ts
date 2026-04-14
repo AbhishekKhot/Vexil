@@ -51,7 +51,7 @@ export class StrategyFactory {
             throw new StrategyValidationError("strategyConfig must have a strategyType field");
         const config = raw as Record<string, unknown>;
         const type = config.strategyType as string;
-        const validTypes = ["boolean","rollout","targeted_rollout","user_targeting","attribute_matching","ab_test","time_window","prerequisite"];
+        const validTypes = ["boolean", "rollout", "targeted_rollout", "user_targeting", "attribute_matching", "ab_test", "time_window", "prerequisite"];
         if (!validTypes.includes(type))
             throw new StrategyValidationError(`Invalid strategyType "${type}". Valid: ${validTypes.join(", ")}`);
         switch (type) {

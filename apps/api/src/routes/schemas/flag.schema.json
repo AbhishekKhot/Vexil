@@ -7,8 +7,14 @@
       "type": "object",
       "required": ["key", "type"],
       "properties": {
-        "key":         { "type": "string", "description": "Unique slug (e.g. new-dashboard). Lowercase letters, digits, hyphens only." },
-        "type":        { "type": "string", "enum": ["boolean", "string", "number", "json"] },
+        "key": {
+          "type": "string",
+          "description": "Unique slug (e.g. new-dashboard). Lowercase letters, digits, hyphens only."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["boolean", "string", "number", "json"]
+        },
         "description": { "type": "string" }
       }
     }

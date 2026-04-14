@@ -34,7 +34,7 @@ describe("EvaluationEngine", () => {
 
     it("U-EE-03: one flag throws during evaluation → ERROR reason, other flags still evaluated", async () => {
         // Suppress the expected console.error that EvaluationEngine emits for fault-isolated errors
-        const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+        const spy = vi.spyOn(console, "error").mockImplementation(() => { });
         const engine = new EvaluationEngine(makeConfigRepo() as any);
 
         const badConfig = makeConfig({

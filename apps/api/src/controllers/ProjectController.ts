@@ -2,11 +2,11 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { ProjectService } from "../services/ProjectService";
 
 export class ProjectController {
-    constructor(private readonly projectService: ProjectService) {}
+    constructor(private readonly projectService: ProjectService) { }
 
     createProject = async (request: FastifyRequest<{ Body: { name: string; description?: string } }>, reply: FastifyReply) => {
         try {
-            const project = await this.projectService.createProject(request.user.organizationId, request.body?.name, request.body?.description);
+            const project = await this.projectService.createProject(request.user.organizationId, request.body ?.name, request.body ?.description);
             return reply.code(201).send(project);
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
     };

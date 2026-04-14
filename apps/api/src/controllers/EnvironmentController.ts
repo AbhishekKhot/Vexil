@@ -3,14 +3,14 @@ import { EnvironmentService } from "../services/EnvironmentService";
 import { ProjectService } from "../services/ProjectService";
 
 export class EnvironmentController {
-    constructor(private readonly envService: EnvironmentService, private readonly projectService: ProjectService) {}
+    constructor(private readonly envService: EnvironmentService, private readonly projectService: ProjectService) { }
 
     createEnvironment = async (request: FastifyRequest<{ Params: { projectId: string }; Body: { name: string } }>, reply: FastifyReply) => {
         try {
             // Pass organizationId to prevent creating environments in another org's project.
             const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
             if (!project) return reply.code(404).send({ error: "Project not found" });
-            const env = await this.envService.createEnvironment(project, request.body?.name);
+            const env = await this.envService.createEnvironment(project, request.body ?.name);
             return reply.code(201).send(env);
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
     };

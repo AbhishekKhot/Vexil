@@ -150,9 +150,9 @@ describe("EvaluationService", () => {
         // Give the fire-and-forget a tick to run
         await new Promise(r => setTimeout(r, 10));
 
-        const insertedEvents = eventRepo.insert.mock.calls[0]?.[0] as any[];
+        const insertedEvents = eventRepo.insert.mock.calls[0] ?.[0] as any[];
         if (insertedEvents) {
-            const ctx = insertedEvents[0]?.context;
+            const ctx = insertedEvents[0] ?.context;
             // PII fields must not appear in stored context
             if (ctx) {
                 expect(ctx.userId).toBeUndefined();
@@ -183,10 +183,10 @@ describe("EvaluationService", () => {
 
         await new Promise(r => setTimeout(r, 10));
 
-        const insertedEvents = eventRepo.insert.mock.calls[0]?.[0] as any[];
+        const insertedEvents = eventRepo.insert.mock.calls[0] ?.[0] as any[];
         if (insertedEvents) {
             // When no non-PII keys remain, context should be undefined
-            expect(insertedEvents[0]?.context).toBeUndefined();
+            expect(insertedEvents[0] ?.context).toBeUndefined();
         }
     });
 });

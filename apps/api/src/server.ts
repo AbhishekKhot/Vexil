@@ -27,7 +27,12 @@ const start = async () => {
         password: process.env.DB_PASS || "postgres",
         database: process.env.DB_NAME || "vexil",
         entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, EvaluationEvent, User, Organization, AuditLog],
-        synchronize: true,
+        // Never auto-sync in any environment — use migrations instead.
+        // run_start.sh runs `migration:run` before this process starts, so
+        // migrationsRun: true here acts as a safety net for direct `node dist/server.js` invocations.
+        synchronize: false,
+        migrationsRun: true,
+        migrations: [require('path').join(__dirname, 'migrations', '*.js')],
         logging: false,
     });
 

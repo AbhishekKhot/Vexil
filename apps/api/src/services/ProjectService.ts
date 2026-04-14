@@ -2,11 +2,11 @@ import { Repository } from "typeorm";
 import { Project } from "../entities/Project";
 
 export class ProjectService {
-    constructor(private readonly projectRepo: Repository<Project>) {}
+    constructor(private readonly projectRepo: Repository<Project>) { }
 
     async createProject(organizationId: string, name: string, description?: string): Promise<Project> {
         if (!name || name.trim().length < 3) throw new Error("Project name must be at least 3 characters");
-        return this.projectRepo.save(this.projectRepo.create({ organizationId, name: name.trim(), description: description?.trim() }));
+        return this.projectRepo.save(this.projectRepo.create({ organizationId, name: name.trim(), description: description ?.trim() }));
     }
 
     async listProjects(organizationId: string): Promise<Project[]> {

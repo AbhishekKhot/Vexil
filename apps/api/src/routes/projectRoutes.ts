@@ -12,12 +12,12 @@ export default async function projectRoutes(fastify: FastifyInstance) {
         new ProjectService(fastify.orm.getRepository(Project)),
     );
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
-    const adminOnly     = requireRole([UserRole.ADMIN]);
+    const adminOnly = requireRole([UserRole.ADMIN]);
 
     fastify.post("/", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     projectSchemas.createProject,
+        schema: projectSchemas.createProject,
     }, ctrl.createProject as any);
 
     fastify.get("/", {
@@ -31,8 +31,8 @@ export default async function projectRoutes(fastify: FastifyInstance) {
     }, ctrl.getProject as any);
 
     fastify.delete("/:id", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOnly],
-        schema:     projectSchemas.deleteProject,
+        schema: projectSchemas.deleteProject,
     }, ctrl.deleteProject as any);
 }

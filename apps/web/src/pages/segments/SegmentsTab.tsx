@@ -35,7 +35,7 @@ export default function SegmentsTab() {
 
   const del = async (id: string) => {
     if (!confirm('Delete this segment?')) return;
-    await api.deleteSegment(projectId!, id).catch(() => {});
+    await api.deleteSegment(projectId!, id).catch(() => { });
     load();
   };
 

@@ -37,12 +37,12 @@ export async function analyticsDataRoutes(fastify: FastifyInstance) {
  * JWT-protected; available to all roles (VIEWER included) for read-only dashboard use.
  */
 export async function analyticsControlRoutes(fastify: FastifyInstance) {
-    const ctrl   = new AnalyticsController(makeService(fastify));
+    const ctrl = new AnalyticsController(makeService(fastify));
     const viewer = requireRole([UserRole.ADMIN, UserRole.MEMBER, UserRole.VIEWER]);
 
     fastify.get("/:projectId/stats", {
-        config:     { rateLimit: LIMITS.controlRead },
+        config: { rateLimit: LIMITS.controlRead },
         preHandler: [viewer],
-        schema:     analyticsSchemas.getAnalytics,
+        schema: analyticsSchemas.getAnalytics,
     }, ctrl.getAnalytics as any);
 }

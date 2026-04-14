@@ -13,7 +13,7 @@ function makeBucketThrottle(capacity: number, refillRateMs: number) {
 
     return async function throttle(request: any, reply: any): Promise<void> {
         const auth = request.headers.authorization as string | undefined;
-        if (!auth?.startsWith("Bearer ")) return;
+        if (!auth ?.startsWith("Bearer ")) return;
         const apiKey = auth.slice(7).trim();
         const now = Date.now();
         const bucket = buckets.get(apiKey);
@@ -56,8 +56,8 @@ async function buildApp(options: {
 }) {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
 
-    const bucketCapacity  = options.evalBucketCapacity ?? 5;
-    const bucketRefillMs  = options.evalRefillRateMs ?? 60_000;
+    const bucketCapacity = options.evalBucketCapacity ?? 5;
+    const bucketRefillMs = options.evalRefillRateMs ?? 60_000;
 
     const app = Fastify({ logger: false });
 
@@ -65,7 +65,7 @@ async function buildApp(options: {
         global: false,
         keyGenerator: (req) => {
             const auth = req.headers.authorization;
-            if (auth?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`;
+            if (auth ?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`;
             return `rl:${req.ip ?? "127.0.0.1"}`;
         },
         errorResponseBuilder: () => ({
@@ -76,7 +76,7 @@ async function buildApp(options: {
 
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         try {
             const payload = jwt.verify(auth.slice(7), TEST_JWT_SECRET) as any;
             req.user = { id: payload.userId, email: payload.email, organizationId: payload.organizationId, role: "ADMIN" };
@@ -86,16 +86,16 @@ async function buildApp(options: {
     const throttle = makeBucketThrottle(bucketCapacity, bucketRefillMs);
 
     // Auth routes
-    app.post("/api/auth/register", { config: { rateLimit: { max: options.registerLimit ?? 5,  timeWindow: "1d" } } }, async (_req, reply) => reply.code(201).send({ token: "t" }));
-    app.post("/api/auth/login",    { config: { rateLimit: { max: options.loginLimit ?? 10,    timeWindow: "15m" } } }, async (_req, reply) => reply.code(200).send({ token: "t" }));
+    app.post("/api/auth/register", { config: { rateLimit: { max: options.registerLimit ?? 5, timeWindow: "1d" } } }, async (_req, reply) => reply.code(201).send({ token: "t" }));
+    app.post("/api/auth/login", { config: { rateLimit: { max: options.loginLimit ?? 10, timeWindow: "15m" } } }, async (_req, reply) => reply.code(200).send({ token: "t" }));
 
     // Data plane
-    app.post("/v1/flags/evaluate", { config: { rateLimit: { max: options.evalLimit ?? 100,   timeWindow: "1d" } }, preHandler: [throttle] }, async (_req, reply) => reply.code(200).send({ flags: {} }));
-    app.post("/v1/events",         { config: { rateLimit: { max: options.eventsLimit ?? 50,   timeWindow: "1d" } } }, async (_req, reply) => reply.code(202).send({ status: "accepted" }));
+    app.post("/v1/flags/evaluate", { config: { rateLimit: { max: options.evalLimit ?? 100, timeWindow: "1d" } }, preHandler: [throttle] }, async (_req, reply) => reply.code(200).send({ flags: {} }));
+    app.post("/v1/events", { config: { rateLimit: { max: options.eventsLimit ?? 50, timeWindow: "1d" } } }, async (_req, reply) => reply.code(202).send({ status: "accepted" }));
 
     // Control plane
-    app.post("/api/projects",      { config: { rateLimit: { max: options.controlWriteLimit ?? 50,  timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(201).send({ id: "p-1" }));
-    app.get("/api/projects",       { config: { rateLimit: { max: options.controlReadLimit ?? 200,  timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(200).send([]));
+    app.post("/api/projects", { config: { rateLimit: { max: options.controlWriteLimit ?? 50, timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(201).send({ id: "p-1" }));
+    app.get("/api/projects", { config: { rateLimit: { max: options.controlReadLimit ?? 200, timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(200).send([]));
 
     await app.ready();
     return app;

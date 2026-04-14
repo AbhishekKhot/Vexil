@@ -8,7 +8,7 @@ export interface AuthPayload { userId: string; email: string; organizationId: st
 
 // Safe shape returned to clients — never includes passwordHash.
 export interface SafeUser { id: string; email: string; name: string; role: UserRole }
-export interface SafeOrg  { id: string; name: string; slug: string }
+export interface SafeOrg { id: string; name: string; slug: string }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LEN = 8;
@@ -44,7 +44,7 @@ export class AuthService {
      * passwordHash is selected explicitly because TypeORM excludes it by default (select: false on the entity).
      */
     async login(email: string, password: string) {
-        const user = await this.userRepo.findOne({ where: { email }, select: ["id","email","passwordHash","organizationId","role","name"], relations: ["organization"] });
+        const user = await this.userRepo.findOne({ where: { email }, select: ["id", "email", "passwordHash", "organizationId", "role", "name"], relations: ["organization"] });
         if (!user) throw new Error("Invalid credentials");
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) throw new Error("Invalid credentials");

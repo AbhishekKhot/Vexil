@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply } from "fastify";
 import { AuthService } from "../services/AuthService";
 
 export class AuthController {
-    constructor(private readonly authService: AuthService) {}
+    constructor(private readonly authService: AuthService) { }
 
     register = async (request: FastifyRequest<{ Body: { email: string; password: string; name: string; orgName: string } }>, reply: FastifyReply) => {
         try {

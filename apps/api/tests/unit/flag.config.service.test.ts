@@ -13,7 +13,7 @@ const makeRedis = () => ({
 });
 
 const mockFlag = { id: "flag-1", key: "my-flag" } as any;
-const mockEnv  = { id: "env-1", name: "production" } as any;
+const mockEnv = { id: "env-1", name: "production" } as any;
 
 describe("FlagConfigService", () => {
     let configRepo: ReturnType<typeof makeConfigRepo>;

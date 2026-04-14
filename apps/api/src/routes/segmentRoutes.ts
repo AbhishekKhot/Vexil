@@ -22,9 +22,9 @@ export default async function segmentRoutes(fastify: FastifyInstance) {
     }, ctrl.listSegments as any);
 
     fastify.post("/:projectId/segments", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     segmentSchemas.createSegment,
+        schema: segmentSchemas.createSegment,
     }, ctrl.createSegment as any);
 
     fastify.get("/:projectId/segments/:segmentId", {
@@ -33,14 +33,14 @@ export default async function segmentRoutes(fastify: FastifyInstance) {
     }, ctrl.getSegment as any);
 
     fastify.patch("/:projectId/segments/:segmentId", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     segmentSchemas.updateSegment,
+        schema: segmentSchemas.updateSegment,
     }, ctrl.updateSegment as any);
 
     fastify.delete("/:projectId/segments/:id", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     segmentSchemas.deleteSegment,
+        schema: segmentSchemas.deleteSegment,
     }, ctrl.deleteSegment as any);
 }

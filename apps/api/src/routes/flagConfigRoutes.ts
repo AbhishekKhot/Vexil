@@ -27,8 +27,8 @@ export default async function flagConfigRoutes(fastify: FastifyInstance) {
     }, ctrl.getFlagConfig as any);
 
     fastify.put("/:projectId/environments/:environmentId/flags/:flagId", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     flagConfigSchemas.setFlagConfig,
+        schema: flagConfigSchemas.setFlagConfig,
     }, ctrl.setFlagConfig as any);
 }

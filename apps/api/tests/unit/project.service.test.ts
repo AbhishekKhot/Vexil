@@ -73,7 +73,7 @@ describe("ProjectService", () => {
 
         const result = await svc.getProject("p-1", "org-1");
 
-        expect(result?.id).toBe("p-1");
+        expect(result ?.id).toBe("p-1");
         expect(projectRepo.findOne).toHaveBeenCalledWith({
             where: expect.objectContaining({ id: "p-1", organizationId: "org-1" }),
         });

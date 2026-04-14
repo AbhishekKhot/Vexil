@@ -15,12 +15,12 @@ export default async function flagRoutes(fastify: FastifyInstance) {
         new ProjectService(fastify.orm.getRepository(Project)),
     );
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
-    const adminOnly     = requireRole([UserRole.ADMIN]);
+    const adminOnly = requireRole([UserRole.ADMIN]);
 
     fastify.post("/:projectId/flags", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     flagSchemas.createFlag,
+        schema: flagSchemas.createFlag,
     }, ctrl.createFlag as any);
 
     fastify.get("/:projectId/flags", {
@@ -34,14 +34,14 @@ export default async function flagRoutes(fastify: FastifyInstance) {
     }, ctrl.getFlag as any);
 
     fastify.put("/:projectId/flags/:flagId", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     flagSchemas.updateFlag,
+        schema: flagSchemas.updateFlag,
     }, ctrl.updateFlag as any);
 
     fastify.delete("/:projectId/flags/:id", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOnly],
-        schema:     flagSchemas.deleteFlag,
+        schema: flagSchemas.deleteFlag,
     }, ctrl.deleteFlag as any);
 }

@@ -34,13 +34,13 @@ export default function EnvironmentsTab() {
 
   const rotate = async (envId: string) => {
     if (!confirm('Rotate API key? The old key will stop working immediately.')) return;
-    await api.rotateApiKey(projectId!, envId).catch(() => {});
+    await api.rotateApiKey(projectId!, envId).catch(() => { });
     load();
   };
 
   const del = async (envId: string) => {
     if (!confirm('Delete environment? This cannot be undone.')) return;
-    await api.deleteEnvironment(projectId!, envId).catch(() => {});
+    await api.deleteEnvironment(projectId!, envId).catch(() => { });
     load();
   };
 

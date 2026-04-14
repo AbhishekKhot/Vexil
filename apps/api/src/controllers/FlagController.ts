@@ -3,7 +3,7 @@ import { FlagService } from "../services/FlagService";
 import { ProjectService } from "../services/ProjectService";
 
 export class FlagController {
-    constructor(private readonly flagService: FlagService, private readonly projectService: ProjectService) {}
+    constructor(private readonly flagService: FlagService, private readonly projectService: ProjectService) { }
 
     createFlag = async (request: FastifyRequest<{ Params: { projectId: string }; Body: { key: string; type?: string; description?: string } }>, reply: FastifyReply) => {
         try {
@@ -11,7 +11,7 @@ export class FlagController {
             // flags in projects that belong to a different org.
             const project = await this.projectService.getProject(request.params.projectId, request.user.organizationId);
             if (!project) return reply.code(404).send({ error: "Project not found" });
-            const flag = await this.flagService.createFlag(project, request.body?.key, request.body?.type, request.body?.description);
+            const flag = await this.flagService.createFlag(project, request.body ?.key, request.body ?.type, request.body ?.description);
             return reply.code(201).send(flag);
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
     };

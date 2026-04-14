@@ -37,7 +37,7 @@ export default function FlagsTab() {
 
   const remove = async (id: string) => {
     if (!confirm('Delete this flag?')) return;
-    await api.deleteFlag(projectId!, id).catch(() => {});
+    await api.deleteFlag(projectId!, id).catch(() => { });
     load();
   };
 

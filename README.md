@@ -1,414 +1,431 @@
-# 🚩 Vexil
+# Vexil
 
-> **Vexil** — A high-performance, open-source feature flag and remote configuration service with local evaluation and deterministic rollouts.
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Node.js** ≥ 18
-- **Docker** (for Postgres, Redis, RabbitMQ)
-- **npm** ≥ 9
-
-### 1. Clone and install dependencies
-
-```bash
-git clone https://github.com/your-org/vexil.git
-cd vexil
-npm install          # installs all workspace packages
-```
-
-### 2. Start infrastructure
-
-```bash
-docker compose up -d
-```
-
-This starts:
-- PostgreSQL on port **5433**
-- Redis on port **6379**
-- RabbitMQ on ports **5672** (AMQP) and **15672** (management UI, guest/guest)
-
-### 3. Configure the backend
-
-```bash
-cd services/admin-api
-cp .env.example .env   # then edit as needed
-```
-
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `3000` | Fastify listen port |
-| `DB_HOST` | `127.0.0.1` | PostgreSQL host |
-| `DB_PORT` | `5433` | PostgreSQL port |
-| `DB_USER` | `postgres` | PostgreSQL username |
-| `DB_PASS` | `postgres` | PostgreSQL password |
-| `DB_NAME` | `vexil` | PostgreSQL database name |
-| `REDIS_HOST` | `127.0.0.1` | Redis host |
-| `REDIS_PORT` | `6379` | Redis port |
-| `RABBITMQ_URL` | `amqp://guest:guest@127.0.0.1:5672` | RabbitMQ connection (optional — analytics queue) |
-| `JWT_SECRET` | `vexil-dev-secret-change-in-prod` | JWT signing secret — **change in production** |
-| `NODE_ENV` | `development` | Set to `test` to use in-memory Redis mock |
-
-### 4. Start the backend
-
-```bash
-cd services/admin-api
-npm run dev          # ts-node, port 3000
-```
-
-The API is now available at `http://localhost:3000`.
-Interactive API docs (Swagger UI) are at **`http://localhost:3000/docs`**.
-
-### 5. Start the frontend
-
-```bash
-cd services/admin-ui
-npm run dev          # Vite dev server, port 5173
-```
-
-Open **`http://localhost:5173`** — register an account, create a project, and start managing flags.
+> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, real-time evaluation, and a built-in analytics pipeline.
 
 ---
 
-## 📦 SDK Quick Start
+## Repository Layout
 
-### TypeScript / Node.js
-
-```bash
-npm install @vexil/sdk-js
+```
+vexil/
+├── apps/
+│   ├── api/          # Fastify backend — control + data plane  →  apps/api/README.md
+│   └── web/          # React admin dashboard                   →  apps/web/README.md
+├── packages/
+│   ├── sdk-js/       # @vexil/sdk-js — JS/TS SDK (npm package) →  packages/sdk-js/README.md
+│   └── types/        # @vexil/types — shared TypeScript types
+├── docker-compose.yml
+└── railway.toml      # Railway deployment config
 ```
 
-```typescript
-import { VexilClient } from "@vexil/sdk-js";
-
-const client = new VexilClient({
-  apiKey: "vex_...",           // environment API key from the dashboard
-  baseUrl: "http://localhost:3000",
-  pollingInterval: 60_000,     // optional: refresh flags every 60s
-});
-
-// Fetch flags with a user context
-await client.fetchFlags({ userId: "user_88", country: "IN", tier: "premium" });
-
-// Check boolean flags
-if (client.isEnabled("new-dashboard")) {
-  renderNewDashboard();
-}
-
-// Read typed values
-const theme = client.getValue<string>("ui-theme");      // string
-const limit = client.getValue<number>("rate-limit");    // number
-
-// Stop background processes before shutdown
-await client.destroy();
-```
-
-**Analytics** are captured automatically on every `fetchFlags()` call and flushed to `/v1/events` every 30 seconds (or when 1,000 events accumulate).
-
-### Ruby
-
-```bash
-# No gem required — just copy lib/vexil.rb into your project
-```
-
-```ruby
-require_relative "lib/vexil"
-
-client = Vexil::Client.new(
-  api_key: "vex_...",
-  base_url: "http://localhost:3000"
-)
-
-client.fetch_flags(userId: "user_88", country: "IN", tier: "premium")
-
-if client.enabled?("new-dashboard")
-  render_new_dashboard
-end
-
-theme = client.value("ui-theme", "light")
-```
+**Per-service setup guides live in each service's own README.** This document covers the overall system architecture, data model, and evaluation design.
 
 ---
 
-## ✨ Key Highlights
-
-- 🚀 **Sub-millisecond Latency**: Rules are processed locally in the SDK, avoiding network round-trips for every flag check.
-- ⚖️ **Deterministic Rollouts**: Consistent hashing for "sticky" percentage-based traffic splitting.
-- 🌍 **Environment Isolation**: Native support for Development, Staging, and Production with unique API keys.
-- 🎯 **Advanced Targeting**: Segment users by region, subscription tier, or custom metadata.
-- 🛠️ **Enterprise Tech Stack**: Powered by **Fastify**, **Node.js**, **PostgreSQL**, **Redis**, and **RabbitMQ**.
-- 📦 **Multi-SDK Support**: TypeScript/Node.js and Ruby SDKs included.
-
----
-
-# 🏗️ High-Level Design (HLD)
-
-Vexil is split into the **Control Plane** (Management) and the **Data Plane** (High-speed Delivery).
+## Service Architecture
 
 ```mermaid
-graph TD
-    subgraph "External Consumer (Client App)"
-        SDK[Vexil SDK]
+graph TB
+    classDef client fill:#4f46e5,stroke:#3730a3,color:#fff
+    classDef sdk fill:#0891b2,stroke:#0e7490,color:#fff
+    classDef plane fill:#1e293b,stroke:#334155,color:#e2e8f0
+    classDef infra fill:#166534,stroke:#14532d,color:#fff
+
+    subgraph clients["Client Applications"]
+        APP1["Web App"]:::client
+        APP2["Node.js Service"]:::client
     end
 
-    subgraph "Vexil Control Plane"
-        Dash[React Admin Dashboard]
-        AdminAPI[Fastify Management API]
+    subgraph sdk["@vexil/sdk-js"]
+        SDKJS["VexilClient\npolling · analytics buffer"]:::sdk
     end
 
-    subgraph "Vexil Data Plane"
-        EvalAPI[Edge API - SDK Polling]
-        PubSub[Redis Pub/Sub - Realtime Updates]
+    subgraph control["Control Plane  (apps/web + /api/*)"]
+        DASH["React Dashboard\n:5173"]:::plane
+        API["Fastify API\n/api/* — JWT auth\n:3000"]:::plane
+        SCHED["SchedulerService\n60s poll → scheduled flag changes"]:::plane
     end
 
-    subgraph "Persistence & Messaging"
-        PG[(PostgreSQL - Source of Truth)]
-        Cache[(Redis - High Speed Ruleset)]
-        MQ[RabbitMQ - Analytics & Workers]
+    subgraph data["Data Plane  (/v1/*)"]
+        EVAL["POST /v1/flags/evaluate\nAPI-key auth"]:::plane
+        EVENTS["POST /v1/events\nanalytics ingest"]:::plane
     end
 
-    Dash --> AdminAPI
-    AdminAPI --> PG
-    AdminAPI --> Cache
-    AdminAPI --> PubSub
+    subgraph infra["Infrastructure"]
+        PG[("PostgreSQL 16\nsource of truth")]:::infra
+        REDIS[("Redis 7\n30s config TTL · 5m env TTL")]:::infra
+    end
 
-    SDK -- "1. Fetch Ruleset" --> EvalAPI
-    EvalAPI -- "Reads Cache" --> Cache
-    PubSub -- "Invalidates" --> EvalAPI
-
-    SDK -- "2. Background Analytics" --> MQ
-    MQ --> PG
+    APP1 & APP2 --> SDKJS
+    SDKJS --> EVAL
+    SDKJS --> EVENTS
+    DASH --> API
+    API --> PG
+    API --> REDIS
+    EVAL --> REDIS
+    EVAL --> PG
+    EVENTS --> PG
+    SCHED --> PG
+    SCHED --> REDIS
 ```
 
----
+### Two-plane design
 
-# 📦 SDK Integration
-
-## General Workflow
-
-1. **Initialize**: Provide your Environment API Key.
-2. **Context**: Pass a JSON object containing user attributes (ID, location, etc.).
-3. **Check**: Call the variation method to evaluate the flag locally.
+| Plane | Prefix | Auth | Purpose |
+|-------|--------|------|---------|
+| Control | `/api/*` | JWT (8h) | Dashboard CRUD — projects, flags, environments, analytics |
+| Data | `/v1/*` | API key (`vex_…`) | SDK flag evaluation + analytics event ingestion |
 
 ---
 
-## 🟢 TypeScript / Node.js
-
-```typescript
-import { VexilClient } from "@vexil/sdk-js";
-
-const client = new VexilClient({
-  apiKey: "vex_dev_key_123",
-  baseUrl: "http://localhost:3000",
-});
-
-const userContext = { userId: "user_88", country: "IN", tier: "premium" };
-
-await client.fetchFlags(userContext);
-
-if (client.isEnabled("beta_feature")) {
-  renderNewDashboard();
-} else {
-  renderOldDashboard();
-}
-
-const theme = client.getValue<string>("ui-theme");
-```
-
----
-
-## 🔴 Ruby
-
-```ruby
-require_relative "lib/vexil"
-
-client = Vexil::Client.new(
-  api_key: "vex_dev_key_123",
-  base_url: "http://localhost:3000"
-)
-
-user_context = { userId: "user_88", country: "IN", tier: "premium" }
-client.fetch_flags(user_context)
-
-if client.enabled?("beta_feature")
-  # Show new UI
-end
-
-theme = client.value("ui-theme", "light")
-```
-
----
-
-
-# 1️⃣ Local Evaluation Sequence Diagram
-
-Internal lifecycle of a `getVariation` call within the SDK.  
-It **never leaves the application process**.
+## Flag Evaluation Flow
 
 ```mermaid
 sequenceDiagram
-    participant App as Client Application
-    participant SDK as Vexil SDK Engine
-    participant Store as In-Memory Rule Store
-    participant Tracker as Event Buffer (Analytics)
+    autonumber
+    participant App as Client App
+    participant SDK as VexilClient
+    participant API as /v1/flags/evaluate
+    participant Cache as Redis
+    participant DB as PostgreSQL
 
-    App->>SDK: getVariation("new_header", userContext)
-    SDK->>Store: Get rules for "new_header"
-
-    alt Flag Not Found or Disabled
-        Store-->>SDK: return null / disabled
-        SDK-->>App: return defaultValue
-    else Flag Enabled
-        SDK->>SDK: 1. Check Targeted User IDs (Overrides)
-        alt User ID Matches
-            SDK-->>App: return specific variant
-        else No ID Match
-            SDK->>SDK: 2. Evaluate Segments (Attributes)
-            alt Segment Match (e.g., Country == 'IN')
-                SDK-->>App: return segment variant
-            else No Segment Match
-                SDK->>SDK: 3. Calculate Deterministic Hash
-                Note right of SDK: Hash(UserID + Salt) % 100
-                alt Hash < Rollout %
-                    SDK-->>App: return rollout variant
-                else
-                    SDK-->>App: return defaultValue
-                end
-            end
-        end
+    App->>SDK: init({ userId, country, tier })
+    SDK->>API: POST /v1/flags/evaluate  Bearer vex_...
+    API->>Cache: Lookup env by API key (TTL 5m)
+    alt cache miss
+        Cache-->>API: miss
+        API->>DB: SELECT environment WHERE api_key = ?
+        API->>Cache: SET env (TTL 5m)
     end
+    API->>Cache: Lookup flag configs (TTL 30s)
+    alt cache miss
+        Cache-->>API: miss
+        API->>DB: SELECT flag_environment_configs
+        API->>Cache: SET configs (TTL 30s)
+    end
+    API->>API: EvaluationEngine.evaluate(configs, context)
+    Note over API: Per flag: strategy evaluated, reason code returned
+    API-->>SDK: { flags: { key: { value, type, variant, reason } } }
+    SDK->>SDK: in-memory cache + polling timer (default 30s)
+    SDK-->>App: FlagMap — zero-latency reads
 
-    SDK->>Tracker: Log "Evaluation Event" (Async)
-    Note over Tracker: Pushed to RabbitMQ in background batch
+    loop Every 30s or 1000 buffered events
+        SDK->>API: POST /v1/events (batch)
+        API->>DB: INSERT evaluation_events
+    end
 ```
 
 ---
 
-# 2️⃣ Rule Engine Logic (LLD)
+## Evaluation Strategies
 
----
+Eight strategies are evaluated in strict priority order per flag:
 
-## A. Hashing Algorithm (Consistent Selection)
+```mermaid
+flowchart TD
+    classDef decision fill:#1e40af,stroke:#1e3a8a,color:#fff
+    classDef terminal fill:#166534,stroke:#14532d,color:#fff
+    classDef terminalFail fill:#991b1b,stroke:#7f1d1d,color:#fff
+    classDef strategy fill:#0f172a,stroke:#334155,color:#e2e8f0
 
-We use **djb2** for deterministic bucket assignment:
-- Fast, no dependencies
-- Even distribution across 100 buckets
-- Same `(userId + flagKey)` always maps to the same bucket
+    START([Evaluate flag]) --> ENABLED{Flag enabled?}:::decision
+    ENABLED -- No --> DEFAULT([default value]):::terminalFail
+    ENABLED -- Yes --> STRATEGY{Strategy type}:::decision
 
-### Logic
-
-1. Take the `userId` (or configured `hashAttribute`) from context.
-2. Append the **flag key** as a salt to prevent correlated rollouts.
-3. Run djb2 hash.
-4. Apply modulo 100 → bucket 0–99.
-
-```typescript
-function computeBucket(identifier: string, seed: string): number {
-  const str = `${identifier}:${seed}`;
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash) ^ str.charCodeAt(i);
-  }
-  return Math.abs(hash >>> 0) % 100;
-}
+    STRATEGY --> BOOL["Boolean — fixed on/off value"]:::strategy
+    STRATEGY --> ROLLOUT["Rollout — djb2(userId+flagKey) % 100"]:::strategy
+    STRATEGY --> USER["User Targeting — userId in whitelist"]:::strategy
+    STRATEGY --> ATTR["Attribute Matching — AND rule evaluation"]:::strategy
+    STRATEGY --> TARGETED["Targeted Rollout — rules AND rollout bucket"]:::strategy
+    STRATEGY --> AB["A/B Test — weighted variant assignment"]:::strategy
+    STRATEGY --> TIME["Time Window — now between start/end UTC"]:::strategy
+    STRATEGY --> PREREQ["Prerequisite — other flag == expected value (max depth 3)"]:::strategy
 ```
 
----
+| Strategy | Key config fields |
+|----------|-------------------|
+| `boolean` | `value: boolean` |
+| `rollout` | `percentage: 0–100`, `hashAttribute` |
+| `user_targeting` | `userIds: string[]`, `hashAttribute`, `fallthrough` |
+| `attribute_matching` | `rules: TargetingRule[]` |
+| `targeted_rollout` | `percentage`, `hashAttribute`, `rules` |
+| `ab_test` | `variants: { key, value, weight }[]` (sum to 100), `hashAttribute` |
+| `time_window` | `startDate`, `endDate` (ISO 8601), `timezone?` |
+| `prerequisite` | `flagKey`, `expectedValue` |
 
-## B. Segment Matching (Predicate Engine)
-
-Supported operators:
-
-- `eq` — Equals  
-- `neq` — Not Equals  
-- `gt` — Greater Than  
-- `lt` — Less Than  
-- `in` — In Array  
-- `nin` — Not In Array  
-- `regex` — Regular Expression Match  
-
----
-
-# 3️⃣ Monitoring & Event Capture (Analytics)
-
-**Does not** sends an HTTP request for every flag evaluation.
-
-## LLD Strategy
-
-### In-Memory Buffer
-
-The SDK maintains:
-
-```
-Map<FlagKey, Counter>
-```
+> `hashAttribute` (default `"userId"`) is the context field used for deterministic bucketing. Rollout results are stable per user per flag.
 
 ---
 
-### Debounced Flush (JS SDK)
-
-- Every **30 seconds**
-- OR when buffer reaches **1000 events**
-
-SDK sends one batch request:
-
-```
-POST /v1/events
-```
-
----
-
-### Ingestion Pipeline
-
-1. Data Plane API receives batch
-2. Drops payload into **RabbitMQ**
-3. Worker consumes messages
-4. Worker increments usage counters in PostgreSQL
-
----
-
-# 4️⃣ Entity Relationship (ER) Diagram
+## Data Model
 
 ```mermaid
 erDiagram
+    ORGANIZATION {
+        uuid id PK
+        string name
+    }
+    USER {
+        uuid id PK
+        string email
+        string password_hash
+        enum role "ADMIN | MEMBER | VIEWER"
+        uuid org_id FK
+    }
+    PROJECT {
+        uuid id PK
+        string name
+        uuid org_id FK
+    }
+    ENVIRONMENT {
+        uuid id PK
+        string name
+        string api_key "vex_..."
+        uuid project_id FK
+    }
+    FLAG {
+        uuid id PK
+        string key
+        string name
+        enum type "boolean | string | number | json"
+        uuid project_id FK
+    }
+    FLAG_ENVIRONMENT_CONFIG {
+        uuid id PK
+        boolean is_enabled
+        enum strategy_type
+        jsonb strategy_config
+        timestamp scheduled_change_at
+        jsonb scheduled_change_config
+        uuid flag_id FK
+        uuid environment_id FK
+    }
+    SEGMENT {
+        uuid id PK
+        string name
+        jsonb conditions
+        uuid project_id FK
+    }
+    EVALUATION_EVENT {
+        uuid id PK
+        string flag_key
+        boolean result
+        jsonb context_snapshot
+        timestamp created_at
+        uuid environment_id FK
+    }
+    AUDIT_LOG {
+        uuid id PK
+        string action
+        jsonb payload
+        timestamp created_at
+        uuid project_id FK
+        uuid user_id FK
+    }
+
+    ORGANIZATION ||--o{ USER : has
     ORGANIZATION ||--o{ PROJECT : owns
     PROJECT ||--o{ ENVIRONMENT : has
     PROJECT ||--o{ FLAG : defines
-    
-    ENVIRONMENT ||--o{ API_KEY : authenticated_by
-    
-    FLAG ||--o{ FLAG_CONFIG : has_state_in
-    ENVIRONMENT ||--o{ FLAG_CONFIG : contains
-    
-    FLAG_CONFIG {
-        boolean is_enabled
-        jsonb rules
-        jsonb variants
-        timestamp scheduled_at
-    }
-
     PROJECT ||--o{ SEGMENT : defines
-    SEGMENT {
-        string name
-        jsonb conditions
-    }
+    PROJECT ||--o{ AUDIT_LOG : tracks
+    FLAG ||--o{ FLAG_ENVIRONMENT_CONFIG : "configured per env"
+    ENVIRONMENT ||--o{ FLAG_ENVIRONMENT_CONFIG : "stores configs"
+    ENVIRONMENT ||--o{ EVALUATION_EVENT : records
 ```
 
 ---
 
-# 🎯 Summary
+## Analytics Pipeline
 
-Vexil provides:
+```mermaid
+flowchart LR
+    classDef sdk fill:#0891b2,stroke:#0e7490,color:#fff
+    classDef api fill:#1e293b,stroke:#334155,color:#e2e8f0
+    classDef db fill:#166534,stroke:#14532d,color:#fff
 
-- ⚡ Local, zero-latency flag evaluation  
-- 🎯 Deterministic and consistent rollouts  
-- 🧠 Advanced targeting with segment engine  
-- 📊 Efficient batched analytics  
-- 🏗️ Scalable control & data plane separation  
+    subgraph sdk["SDK"]
+        EVAL_CALL["client.init()"]:::sdk
+        BUFFER["In-Memory Buffer"]:::sdk
+        FLUSH{"Flush: 30s OR 1000 events"}:::sdk
+    end
+
+    subgraph api["Data Plane"]
+        ENDPOINT["POST /v1/events"]:::api
+        INSERT["INSERT evaluation_events (batch)"]:::api
+    end
+
+    subgraph db["PostgreSQL"]
+        EVENTS_TABLE[("evaluation_events")]:::db
+        STATS["GROUP BY → dashboard stats"]:::db
+    end
+
+    EVAL_CALL --> BUFFER --> FLUSH -->|batch POST| ENDPOINT --> INSERT --> EVENTS_TABLE -->|aggregated| STATS
+```
+
+PII fields (`email`, `name`, and other common PII keys) are stripped from the context snapshot before storage.
 
 ---
 
-**Vexil = Performance + Determinism + Developer Experience**
+## Caching Strategy
+
+| Cache key | TTL | Invalidated on |
+|-----------|-----|----------------|
+| `env_apikey:{apiKey}` | 5 min | Environment update |
+| `env_configs:{environmentId}` | 30 s | Flag config save |
+| `eval_bucket:{apiKey}` | rolling | Token-bucket rate limit |
+
+---
+
+## Docker Compose (Recommended — full stack in one command)
+
+Runs PostgreSQL, Redis, the API, and the web dashboard together. The API container automatically runs database migrations before accepting traffic.
+
+```bash
+# 1. Create your env file and set JWT_SECRET
+cp .env.example .env
+# Edit .env — at minimum, change JWT_SECRET:
+#   JWT_SECRET=$(openssl rand -hex 32)
+
+# 2. Build images and start everything
+docker compose up --build
+```
+
+**What happens on first run:**
+
+```
+postgres  → starts, waits until pg_isready
+redis     → starts, waits until redis-cli ping
+api       → waits for postgres + redis to be healthy
+            runs run_start.sh:
+              [startup] Running database migrations...
+              [startup] Applied migration: InitialSchema1744588800000
+              [startup] Migrations complete.
+              [startup] Starting Vexil API server...
+web       → waits for api /health to return 200
+            serves the React dashboard via nginx
+```
+
+**Subsequent runs** (images already built):
+
+```bash
+docker compose up
+# Migrations are idempotent — "No pending migrations" on a current schema
+```
+
+**Ports:**
+
+| Service | Host URL |
+|---------|----------|
+| PostgreSQL | `localhost:5432` |
+| Redis | `localhost:6379` |
+| API | `http://localhost:3000` — Swagger: `/docs` |
+| Web | `http://localhost:5173` |
+
+**Useful commands:**
+
+```bash
+# Rebuild only the api image after code changes
+docker compose up --build api
+
+# View api logs
+docker compose logs -f api
+
+# Stop everything (keeps volumes)
+docker compose down
+
+# Stop and delete all data (volumes)
+docker compose down -v
+
+# Run a one-off migration manually inside the running container
+docker compose exec api sh -c "node -e \"const {AppDataSource}=require('./dist/data-source');AppDataSource.initialize().then(ds=>ds.runMigrations()).then(()=>process.exit(0))\""
+```
+
+---
+
+## Quick Start (Local Dev — without Docker for the API)
+
+> Full setup instructions are in each service's README. This is the three-command path.
+
+```bash
+# 1. Install all workspaces
+npm install
+
+# 2. Start PostgreSQL + Redis only
+docker compose up -d postgres redis
+
+# 3. Copy env, run migrations, start both services
+cp apps/api/.env.example apps/api/.env
+cd apps/api && npm run migration:run && cd ../..
+npm run dev:api   # http://localhost:3000  |  Swagger: http://localhost:3000/docs
+npm run dev:web   # http://localhost:5173
+```
+
+Register an account → create a project → add environments → create flags → configure strategies.
+
+---
+
+## Database Migrations
+
+Schema changes are managed with TypeORM migrations. `synchronize: true` is disabled — the schema is never auto-modified at runtime.
+
+```bash
+# Apply all pending migrations
+cd apps/api && npm run migration:run
+
+# Undo last migration
+cd apps/api && npm run migration:revert
+
+# Show migration status
+cd apps/api && npm run migration:show
+
+# Generate a new migration after editing an entity
+cd apps/api && npm run migration:generate -- src/migrations/MyChange
+```
+
+See [apps/api/README.md](apps/api/README.md#database-migrations) for the full migration guide including the upgrade path from `synchronize: true`.
+
+---
+
+## Deployment (Railway)
+
+Config in `railway.toml` — two services: `api` and `web`.
+
+**API env vars:**
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string (Railway plugin) |
+| `REDIS_URL` | Redis connection string (Railway plugin) |
+| `JWT_SECRET` | Random secret, min 32 chars (`openssl rand -hex 32`) |
+| `NODE_ENV` | `production` |
+| `PORT` | `3000` |
+| `WEB_URL` | Deployed web URL (CORS allowlist) |
+
+**Web env vars:**
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Deployed API URL, e.g. `https://vexil-api.up.railway.app` |
+
+---
+
+## Feature Matrix
+
+| Area | Capabilities |
+|------|-------------|
+| Auth | JWT register/login, RBAC (ADMIN / MEMBER / VIEWER) |
+| Management | Projects, Environments, Flags CRUD, API key per environment |
+| Strategies | Boolean, Rollout, User Targeting, Attribute Matching, Targeted Rollout, A/B Test, Time Window, Prerequisite |
+| Targeting | Segment builder with attribute rule editor |
+| Scheduling | Per-flag scheduled activation with `scheduledAt` |
+| Analytics | Evaluation event buffering, pass-rate dashboard |
+| Audit | Full immutable audit log per project |
+| Performance | Redis cache (30s config / 5min env TTL), cache-busted on save |
+| SDK | JS/TS — polling, analytics buffering, typed API |
+| Security | RBAC, org isolation, rate limiting, HSTS, CSP headers |
+| API Docs | Swagger UI at `/docs` |
+
+---
+
+**Vexil — Performance + Determinism + Developer Experience**

@@ -11,14 +11,14 @@ function evaluateSingleRule(rule: Rule, context: Record<string, unknown>): boole
     const v = context[rule.attribute];
     if (v === undefined || v === null) return false;
     switch (rule.operator) {
-        case "in":       return rule.values.includes(v);
-        case "not_in":   return !rule.values.includes(v);
-        case "eq":       return v === rule.values[0];
-        case "neq":      return v !== rule.values[0];
+        case "in": return rule.values.includes(v);
+        case "not_in": return !rule.values.includes(v);
+        case "eq": return v === rule.values[0];
+        case "neq": return v !== rule.values[0];
         case "contains": return String(v).includes(String(rule.values[0]));
-        case "gt":       return Number(v) > Number(rule.values[0]);
-        case "lt":       return Number(v) < Number(rule.values[0]);
-        default:         return false;
+        case "gt": return Number(v) > Number(rule.values[0]);
+        case "lt": return Number(v) < Number(rule.values[0]);
+        default: return false;
     }
 }
 

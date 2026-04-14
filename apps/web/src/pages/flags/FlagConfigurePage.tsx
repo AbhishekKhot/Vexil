@@ -65,7 +65,7 @@ export default function FlagConfigurePage() {
           });
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [selectedEnv]);
 
   const save = async () => {
@@ -102,13 +102,11 @@ export default function FlagConfigurePage() {
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Enabled</span>
           <button
             onClick={() => setConfig((c) => ({ ...c, isEnabled: !c.isEnabled }))}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.isEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
-            }`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.isEnabled ? 'bg-indigo-600' : 'bg-gray-300 dark:bg-gray-600'
+              }`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              config.isEnabled ? 'translate-x-6' : 'translate-x-1'
-            }`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.isEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`} />
           </button>
         </div>
 

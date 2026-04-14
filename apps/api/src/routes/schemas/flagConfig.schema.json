@@ -13,10 +13,19 @@
       "type": "object",
       "required": ["isEnabled"],
       "properties": {
-        "isEnabled":    { "type": "boolean" },
+        "isEnabled": { "type": "boolean" },
         "strategyType": {
           "type": "string",
-          "enum": ["boolean", "rollout", "targeted_rollout", "user_targeting", "attribute_matching", "ab_test", "time_window", "prerequisite"]
+          "enum": [
+            "boolean",
+            "rollout",
+            "targeted_rollout",
+            "user_targeting",
+            "attribute_matching",
+            "ab_test",
+            "time_window",
+            "prerequisite"
+          ]
         },
         "strategyConfig": {
           "type": "object",

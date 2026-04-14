@@ -65,7 +65,7 @@ export async function buildTestApp(
     // Minimal authenticate hook: verifies JWT, sets request.user
     app.decorate("authenticate", async (request: any, reply: any) => {
         const auth = request.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) {
+        if (!auth ?.startsWith("Bearer ")) {
             return reply.code(401).send({ error: "Unauthorized" });
         }
         try {

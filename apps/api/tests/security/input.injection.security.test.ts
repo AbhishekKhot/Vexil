@@ -24,7 +24,7 @@ async function buildApp() {
 
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         try {
             const payload = jwt.verify(auth.slice(7), TEST_JWT_SECRET) as any;
             req.user = { id: payload.userId, email: payload.email, organizationId: payload.organizationId, role: payload.role };
@@ -126,7 +126,7 @@ describe("Security: Input & Injection", () => {
         // We test the validation path via service throwing
         const app2 = Fastify({ logger: false });
         app2.post("/flag", {}, async (req: any, reply) => {
-            const key = (req.body as any)?.key ?? "";
+            const key = (req.body as any) ?.key ?? "";
             if (!/^[a-z][a-z0-9-]*$/.test(key)) return reply.code(400).send({ error: "Invalid key format" });
             return reply.code(201).send({ id: "f-1" });
         });

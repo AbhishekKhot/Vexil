@@ -13,10 +13,10 @@ export interface SetFlagConfigInput {
 }
 
 export class FlagConfigService {
-    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>, private readonly redis: Redis) {}
+    constructor(private readonly configRepo: Repository<FlagEnvironmentConfig>, private readonly redis: Redis) { }
 
     async getFlagConfig(flagId: string, environmentId: string): Promise<FlagEnvironmentConfig | null> {
-        return this.configRepo.findOne({ where: { flag: { id: flagId }, environment: { id: environmentId } }, relations: ["flag","environment"] });
+        return this.configRepo.findOne({ where: { flag: { id: flagId }, environment: { id: environmentId } }, relations: ["flag", "environment"] });
     }
 
     /**
@@ -40,7 +40,7 @@ export class FlagConfigService {
         if (!config) {
             config = this.configRepo.create({
                 flag, environment, isEnabled,
-                strategyType: (parsedStrategy?.strategyType ?? "boolean") as string,
+                strategyType: (parsedStrategy ?.strategyType ?? "boolean") as string,
                 strategyConfig: strategyConfig as any ?? undefined,
                 scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
                 scheduledConfig: scheduledConfig as any ?? undefined,
@@ -62,7 +62,7 @@ export class FlagConfigService {
         const saved = await this.configRepo.save(config);
         // M4: Await cache bust — fire-and-forget could serve a stale config for up to 30s
         // if the del silently fails right after a save.
-        await this.redis.del(`env_configs:${environment.id}`).catch(() => {});
+        await this.redis.del(`env_configs:${environment.id}`).catch(() => { });
         return saved;
     }
 }

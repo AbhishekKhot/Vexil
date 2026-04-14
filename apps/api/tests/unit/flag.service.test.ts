@@ -77,7 +77,7 @@ describe("FlagService", () => {
     it("U-FLAG-09: getFlag — existing id → returns flag with project relation", async () => {
         flagRepo.findOne.mockResolvedValue({ id: "f-1", project: { id: "p-1" } });
         const result = await svc.getFlag("f-1");
-        expect(result?.id).toBe("f-1");
+        expect(result ?.id).toBe("f-1");
         expect(flagRepo.findOne).toHaveBeenCalledWith({ where: { id: "f-1" }, relations: ["project"] });
     });
 

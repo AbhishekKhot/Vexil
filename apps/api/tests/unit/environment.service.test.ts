@@ -71,7 +71,7 @@ describe("EnvironmentService", () => {
     it("U-ENV-06: getEnvironment — existing id → returns env with project relation", async () => {
         envRepo.findOne.mockResolvedValue({ id: "e-1", project: { id: "p-1" } });
         const result = await svc.getEnvironment("e-1");
-        expect(result?.id).toBe("e-1");
+        expect(result ?.id).toBe("e-1");
         expect(envRepo.findOne).toHaveBeenCalledWith({ where: { id: "e-1" }, relations: ["project"] });
     });
 
@@ -132,3 +132,4 @@ describe("EnvironmentService", () => {
         await expect(svc.rotateApiKey("missing")).rejects.toThrow("Environment not found");
     });
 });
+w

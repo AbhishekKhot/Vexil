@@ -10,9 +10,9 @@
         "type": "object",
         "required": ["flagKey", "result"],
         "properties": {
-          "flagKey":   { "type": "string", "maxLength": 128 },
-          "result":    { "type": "boolean" },
-          "context":   { "type": "object" },
+          "flagKey": { "type": "string", "maxLength": 128 },
+          "result": { "type": "boolean" },
+          "context": { "type": "object" },
           "timestamp": { "type": "string" }
         }
       }
@@ -26,8 +26,14 @@
     "querystring": {
       "type": "object",
       "properties": {
-        "environmentId": { "type": "string", "description": "Filter to a single environment." },
-        "flagKey":       { "type": "string", "description": "Filter to a single flag key." }
+        "environmentId": {
+          "type": "string",
+          "description": "Filter to a single environment."
+        },
+        "flagKey": {
+          "type": "string",
+          "description": "Filter to a single flag key."
+        }
       }
     }
   }

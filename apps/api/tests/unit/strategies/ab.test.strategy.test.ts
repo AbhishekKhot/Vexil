@@ -21,7 +21,7 @@ describe("AbTestStrategy", () => {
         const s = new AbTestStrategy({ strategyType: "ab_test", variants: twoVariants, hashAttribute: "userId" }, "ab-flag");
         const variants = new Set<string>();
         const users = ["alice", "bob", "charlie", "dave", "eve", "frank", "grace", "henry", "ivan", "julia",
-                       "kurt", "laura", "mike", "nina", "oscar", "pam", "quinn", "ray", "sara", "tom"];
+            "kurt", "laura", "mike", "nina", "oscar", "pam", "quinn", "ray", "sara", "tom"];
         for (const id of users) {
             const r = s.evaluate({ userId: id });
             variants.add(r.variant as string);
@@ -75,7 +75,7 @@ describe("AbTestStrategy", () => {
             "three-way-flag"
         );
         const users = ["alice", "bob", "charlie", "dave", "eve", "frank", "grace", "henry", "ivan",
-                       "julia", "kurt", "laura", "mike", "nina", "oscar", "pam", "quinn", "ray"];
+            "julia", "kurt", "laura", "mike", "nina", "oscar", "pam", "quinn", "ray"];
         const seen = new Set<string>();
         for (const id of users) {
             const r = s.evaluate({ userId: id });

@@ -6,10 +6,22 @@
     "querystring": {
       "type": "object",
       "properties": {
-        "page":       { "type": "string", "description": "1-based page number (default: 1)." },
-        "limit":      { "type": "string", "description": "Items per page, max 100 (default: 20)." },
-        "action":     { "type": "string", "description": "Filter by action verb (e.g. created, updated, deleted)." },
-        "entityType": { "type": "string", "description": "Filter by entity kind (e.g. flag, environment, segment)." }
+        "page": {
+          "type": "string",
+          "description": "1-based page number (default: 1)."
+        },
+        "limit": {
+          "type": "string",
+          "description": "Items per page, max 100 (default: 20)."
+        },
+        "action": {
+          "type": "string",
+          "description": "Filter by action verb (e.g. created, updated, deleted)."
+        },
+        "entityType": {
+          "type": "string",
+          "description": "Filter by entity kind (e.g. flag, environment, segment)."
+        }
       }
     }
   },

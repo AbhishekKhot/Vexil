@@ -20,7 +20,7 @@ const BUCKET_TTL_S = Math.ceil((CAPACITY * REFILL_RATE_MS * 2) / 1000);
 export function makeEvalThrottle(redis: Redis) {
     return async function evalThrottle(request: FastifyRequest, reply: FastifyReply): Promise<void> {
         const auth = request.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return; // auth failure handled downstream
+        if (!auth ?.startsWith("Bearer ")) return; // auth failure handled downstream
 
         const apiKey = auth.slice(7).trim();
         const bucketKey = `eval_bucket:${apiKey}`;

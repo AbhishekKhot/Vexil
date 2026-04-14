@@ -19,7 +19,7 @@ async function buildApp() {
     // Authenticate decorator — identical to production logic
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         try {
             const payload = jwt.verify(auth.slice(7), TEST_JWT_SECRET) as any;
             req.user = { id: payload.userId, email: payload.email, organizationId: payload.organizationId, role: payload.role };

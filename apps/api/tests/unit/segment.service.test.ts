@@ -70,7 +70,7 @@ describe("SegmentService", () => {
     it("U-SEG-08: getSegment — existing id → returns segment with project relation", async () => {
         segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: { id: "p-1" } });
         const result = await svc.getSegment("s-1");
-        expect(result?.id).toBe("s-1");
+        expect(result ?.id).toBe("s-1");
         expect(segmentRepo.findOne).toHaveBeenCalledWith({ where: { id: "s-1" }, relations: ["project"] });
     });
 

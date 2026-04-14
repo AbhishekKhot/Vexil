@@ -3,7 +3,7 @@ import { AnalyticsService } from "../services/AnalyticsService";
 import { extractApiKey } from "../utils/extractApiKey";
 
 export class AnalyticsController {
-    constructor(private readonly analyticsService: AnalyticsService) {}
+    constructor(private readonly analyticsService: AnalyticsService) { }
 
     /**
      * POST /v1/events

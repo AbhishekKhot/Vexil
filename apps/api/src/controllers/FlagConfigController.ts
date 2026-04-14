@@ -5,7 +5,7 @@ import { EnvironmentService } from "../services/EnvironmentService";
 import { StrategyValidationError } from "../evaluation/EvaluationStrategy.interface";
 
 export class FlagConfigController {
-    constructor(private readonly flagConfigService: FlagConfigService, private readonly flagService: FlagService, private readonly envService: EnvironmentService) {}
+    constructor(private readonly flagConfigService: FlagConfigService, private readonly flagService: FlagService, private readonly envService: EnvironmentService) { }
 
     getFlagConfig = async (request: FastifyRequest<{ Params: { projectId: string; environmentId: string; flagId: string } }>, reply: FastifyReply) => {
         const config = await this.flagConfigService.getFlagConfig(request.params.flagId, request.params.environmentId);

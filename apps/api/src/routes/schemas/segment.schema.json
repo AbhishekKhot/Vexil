@@ -13,7 +13,7 @@
       "type": "object",
       "required": ["name", "rules"],
       "properties": {
-        "name":        { "type": "string" },
+        "name": { "type": "string" },
         "description": { "type": "string" },
         "rules": {
           "type": "array",
@@ -23,8 +23,11 @@
             "required": ["attribute", "operator", "values"],
             "properties": {
               "attribute": { "type": "string" },
-              "operator":  { "type": "string", "enum": ["in", "not_in", "eq", "neq", "contains", "gt", "lt"] },
-              "values":    { "type": "array" }
+              "operator": {
+                "type": "string",
+                "enum": ["in", "not_in", "eq", "neq", "contains", "gt", "lt"]
+              },
+              "values": { "type": "array" }
             }
           }
         }

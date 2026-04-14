@@ -12,7 +12,7 @@ export class AnalyticsService {
         private readonly envRepo: Repository<Environment>,
         private readonly eventRepo: Repository<EvaluationEvent>,
         private readonly projectRepo: Repository<Project>
-    ) {}
+    ) { }
 
     async ingestEvents(apiKey: string, events: { flagKey: string; result: boolean; context?: unknown; timestamp?: string }[]): Promise<boolean> {
         const env = await this.envRepo.findOne({ where: { apiKey } });
@@ -49,7 +49,7 @@ export class AnalyticsService {
             };
         });
 
-        await this.eventRepo.insert(rows as any).catch(() => {});
+        await this.eventRepo.insert(rows as any).catch(() => { });
         return true;
     }
 

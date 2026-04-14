@@ -5,7 +5,7 @@ import crypto from "crypto";
 import Redis from "ioredis";
 
 export class EnvironmentService {
-    constructor(private readonly envRepo: Repository<Environment>, private readonly redis: Redis) {}
+    constructor(private readonly envRepo: Repository<Environment>, private readonly redis: Redis) { }
 
     async createEnvironment(project: Project, name: string): Promise<Environment> {
         if (!name || name.trim().length < 2) throw new Error("Environment name must be at least 2 characters");
@@ -26,8 +26,8 @@ export class EnvironmentService {
         if (!env) return false;
         const result = await this.envRepo.delete(id);
         if ((result.affected || 0) > 0) {
-            this.redis.del(`env_apikey:${env.apiKey}`).catch(() => {});
-            this.redis.del(`env_configs:${id}`).catch(() => {});
+            this.redis.del(`env_apikey:${env.apiKey}`).catch(() => { });
+            this.redis.del(`env_configs:${id}`).catch(() => { });
         }
         return (result.affected || 0) > 0;
     }
@@ -38,8 +38,8 @@ export class EnvironmentService {
         const oldKey = env.apiKey;
         env.apiKey = `vex_${crypto.randomBytes(24).toString("hex")}`;
         const updated = await this.envRepo.save(env);
-        this.redis.del(`env_apikey:${oldKey}`).catch(() => {});
-        this.redis.del(`env_configs:${id}`).catch(() => {});
+        this.redis.del(`env_apikey:${oldKey}`).catch(() => { });
+        this.redis.del(`env_configs:${id}`).catch(() => { });
         return updated;
     }
 }

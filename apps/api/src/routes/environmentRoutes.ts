@@ -15,12 +15,12 @@ export default async function environmentRoutes(fastify: FastifyInstance) {
         new ProjectService(fastify.orm.getRepository(Project)),
     );
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
-    const adminOnly     = requireRole([UserRole.ADMIN]);
+    const adminOnly = requireRole([UserRole.ADMIN]);
 
     fastify.post("/:projectId/environments", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     environmentSchemas.createEnvironment,
+        schema: environmentSchemas.createEnvironment,
     }, ctrl.createEnvironment as any);
 
     fastify.get("/:projectId/environments", {
@@ -30,14 +30,14 @@ export default async function environmentRoutes(fastify: FastifyInstance) {
 
     // Rotate generates a new API key and busts the Redis cache for the old one.
     fastify.post("/:projectId/environments/:envId/rotate-key", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOrMember],
-        schema:     environmentSchemas.rotateApiKey,
+        schema: environmentSchemas.rotateApiKey,
     }, ctrl.rotateApiKey as any);
 
     fastify.delete("/:projectId/environments/:id", {
-        config:     { rateLimit: LIMITS.controlWrite },
+        config: { rateLimit: LIMITS.controlWrite },
         preHandler: [adminOnly],
-        schema:     environmentSchemas.deleteEnvironment,
+        schema: environmentSchemas.deleteEnvironment,
     }, ctrl.deleteEnvironment as any);
 }

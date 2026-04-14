@@ -13,8 +13,8 @@ const mockFlagConfigService = {
     getFlagConfig: vi.fn(),
     setFlagConfig: vi.fn(),
 };
-const mockFlagService   = { getFlag: vi.fn() };
-const mockEnvService    = { getEnvironment: vi.fn() };
+const mockFlagService = { getFlag: vi.fn() };
+const mockEnvService = { getEnvironment: vi.fn() };
 
 async function buildApp() {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
@@ -23,7 +23,7 @@ async function buildApp() {
 
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         try {
             const payload = jwt.verify(auth.slice(7), TEST_JWT_SECRET) as any;
             req.user = { id: payload.userId, email: payload.email, organizationId: payload.organizationId, role: payload.role };
