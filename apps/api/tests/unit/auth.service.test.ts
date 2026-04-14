@@ -194,6 +194,15 @@ describe("AuthService.getUserById()", () => {
         process.env.JWT_SECRET = "test-secret-32-chars-long-enough!!";
     });
 
+    it("U-A-13: getUserById() — user not found → returns null", async () => {
+        const { service, userRepo } = makeService();
+        userRepo.findOne.mockResolvedValue(null);
+
+        const result = await service.getUserById("nonexistent-id");
+
+        expect(result).toBeNull();
+    });
+
     it("U-A-12: existing user → returns SafeUser + SafeOrg (no passwordHash)", async () => {
         const { service, userRepo } = makeService();
         const org = { id: "org-1", name: "Acme", slug: "acme" };

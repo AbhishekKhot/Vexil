@@ -55,7 +55,7 @@ export class InitialSchema1744588800000 implements MigrationInterface {
                 "email"           character varying               NOT NULL,
                 "passwordHash"    character varying               NOT NULL,
                 "role"            "public"."users_role_enum"      NOT NULL DEFAULT 'member',
-                "organization_id" character varying               NOT NULL,
+                "organization_id" uuid                            NOT NULL,
                 "createdAt"       TIMESTAMP WITHOUT TIME ZONE     NOT NULL DEFAULT now(),
                 CONSTRAINT "UQ_users_email" UNIQUE ("email"),
                 CONSTRAINT "PK_users"       PRIMARY KEY ("id")
@@ -68,7 +68,7 @@ export class InitialSchema1744588800000 implements MigrationInterface {
                 "id"              uuid                        NOT NULL DEFAULT gen_random_uuid(),
                 "name"            character varying           NOT NULL,
                 "description"     character varying,
-                "organization_id" character varying,
+                "organization_id" uuid,
                 "createdAt"       TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now(),
                 CONSTRAINT "PK_projects" PRIMARY KEY ("id")
             )

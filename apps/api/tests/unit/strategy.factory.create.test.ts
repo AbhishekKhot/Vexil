@@ -1,6 +1,6 @@
 import "reflect-metadata";
 // Unit tests: StrategyFactory.create() — all strategy types instantiated
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { StrategyFactory } from "../../src/evaluation/StrategyFactory";
 import { StrategyValidationError } from "../../src/evaluation/EvaluationStrategy.interface";
 
@@ -79,7 +79,7 @@ describe("StrategyFactory.create()", () => {
         expect(s.evaluate({ country: "US" })).toMatchObject({ reason: "ATTRIBUTE_MATCH" });
     });
 
-    it("SF-C-07: creates AbTestStrategy for type 'ab_test'", () => {
+    it("SF-C-07: creates AbTestStrategy for type 'ab_test'", async () => {
         const s = StrategyFactory.create({
             strategyConfig: {
                 strategyType: "ab_test",
@@ -93,7 +93,7 @@ describe("StrategyFactory.create()", () => {
             flagKey: "f",
         });
         expect(s.strategyType).toBe("ab_test");
-        const r = s.evaluate({ userId: "alice" });
+        const r = await s.evaluate({ userId: "alice" });
         expect(r.reason).toBe("AB_VARIANT");
         expect(r.variant).toBeDefined();
     });
@@ -185,5 +185,32 @@ describe("StrategyFactory.parse() — additional branches", () => {
     it("SF-P-11: boolean strategyType → returns config as-is", () => {
         const result = StrategyFactory.parse({ strategyType: "boolean" });
         expect(result).toMatchObject({ strategyType: "boolean" });
+    });
+
+    // Valid inputs for each type — cover the break paths at lines 61–70
+
+    it("SF-P-12: valid user_targeting (userIds array present) → returns config without throwing", () => {
+        const result = StrategyFactory.parse({ strategyType: "user_targeting", userIds: ["u1", "u2"], hashAttribute: "userId", fallthrough: false });
+        expect(result).toMatchObject({ strategyType: "user_targeting" });
+    });
+
+    it("SF-P-13: valid attribute_matching (non-empty rules array) → returns config without throwing", () => {
+        const result = StrategyFactory.parse({ strategyType: "attribute_matching", rules: [{ attribute: "country", operator: "eq", values: ["US"] }] });
+        expect(result).toMatchObject({ strategyType: "attribute_matching" });
+    });
+
+    it("SF-P-14: valid ab_test (variants array present) → returns config without throwing", () => {
+        const result = StrategyFactory.parse({ strategyType: "ab_test", variants: [{ key: "a", value: true, weight: 50 }, { key: "b", value: false, weight: 50 }], hashAttribute: "userId" });
+        expect(result).toMatchObject({ strategyType: "ab_test" });
+    });
+
+    it("SF-P-15: valid time_window (startDate and endDate present) → returns config without throwing", () => {
+        const result = StrategyFactory.parse({ strategyType: "time_window", startDate: "2025-01-01T00:00:00Z", endDate: "2025-12-31T23:59:59Z" });
+        expect(result).toMatchObject({ strategyType: "time_window" });
+    });
+
+    it("SF-P-16: valid prerequisite (flagKey string present) → returns config without throwing", () => {
+        const result = StrategyFactory.parse({ strategyType: "prerequisite", flagKey: "other-flag", expectedValue: true });
+        expect(result).toMatchObject({ strategyType: "prerequisite" });
     });
 });

@@ -53,5 +53,3 @@ export const AppDataSource = new DataSource({
     migrationsRun: false,
     logging: false,
 });
-
-export default AppDataSource;

@@ -48,4 +48,26 @@ describe("RuleEngine.evaluateRules()", () => {
         const rules = [{ attribute: "plan", operator: "unknown_op" as any, values: ["pro"] }];
         expect(evaluateRules(rules, { plan: "pro" })).toBe(false);
     });
+
+    it("U-RE-09: 'contains' operator — substring present → true", () => {
+        const rules = [{ attribute: "email", operator: "contains" as const, values: ["@acme.com"] }];
+        expect(evaluateRules(rules, { email: "alice@acme.com" })).toBe(true);
+    });
+
+    it("U-RE-10: 'contains' operator — substring absent → false", () => {
+        const rules = [{ attribute: "email", operator: "contains" as const, values: ["@acme.com"] }];
+        expect(evaluateRules(rules, { email: "alice@other.com" })).toBe(false);
+    });
+
+    it("U-RE-11: 'gt' operator — value greater than threshold → true", () => {
+        const rules = [{ attribute: "age", operator: "gt" as const, values: [18] }];
+        expect(evaluateRules(rules, { age: 25 })).toBe(true);
+        expect(evaluateRules(rules, { age: 18 })).toBe(false);
+    });
+
+    it("U-RE-12: 'lt' operator — value less than threshold → true", () => {
+        const rules = [{ attribute: "score", operator: "lt" as const, values: [100] }];
+        expect(evaluateRules(rules, { score: 50 })).toBe(true);
+        expect(evaluateRules(rules, { score: 100 })).toBe(false);
+    });
 });

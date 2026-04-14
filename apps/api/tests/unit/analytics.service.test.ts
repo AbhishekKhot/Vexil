@@ -111,6 +111,25 @@ describe("AnalyticsService", () => {
         expect(result[0].flagKey).toBe("f");
     });
 
+    it("U-AN-11: context within 2048 bytes → stored as-is (not dropped)", async () => {
+        envRepo.findOne.mockResolvedValue({ id: "env-1" });
+        const smallContext = { userId: "u42", plan: "pro" }; // well under 2KB
+
+        await svc.ingestEvents("vex_abc", [{ flagKey: "flag", result: true, context: smallContext }]);
+
+        const insertedRows = eventRepo.insert.mock.calls[0][0] as any[];
+        expect(insertedRows[0].context).toEqual(smallContext);
+    });
+
+    it("U-AN-12: context is null → stored as null without attempting serialization", async () => {
+        envRepo.findOne.mockResolvedValue({ id: "env-1" });
+
+        await svc.ingestEvents("vex_abc", [{ flagKey: "flag", result: true, context: null as any }]);
+
+        const insertedRows = eventRepo.insert.mock.calls[0][0] as any[];
+        expect(insertedRows[0].context).toBeNull();
+    });
+
     it("U-AN-10: getAnalytics — with environmentId filter → andWhere called", async () => {
         projectRepo.findOne.mockResolvedValue({ id: "proj-1" });
         const qb = {

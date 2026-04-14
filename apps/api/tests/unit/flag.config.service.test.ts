@@ -120,6 +120,62 @@ describe("FlagConfigService", () => {
         expect(savedArg.strategyConfig).toHaveProperty("percentage", 50);
     });
 
+    it("U-FC-09: setFlagConfig — update existing config: scheduledAt string → sets scheduledAt as Date and stores scheduledConfig", async () => {
+        const existing: any = { id: "cfg-1", isEnabled: true, strategyType: "boolean", strategyConfig: undefined };
+        configRepo.findOne.mockResolvedValue(existing);
+        configRepo.save.mockImplementation(async (cfg: any) => cfg);
+
+        const scheduledAt = "2025-12-01T00:00:00Z";
+        const scheduledConfig = { isEnabled: false };
+
+        await svc.setFlagConfig({
+            flag: mockFlag, environment: mockEnv, isEnabled: true,
+            scheduledAt,
+            scheduledConfig,
+        });
+
+        const saved = configRepo.save.mock.calls[0][0];
+        expect(saved.scheduledAt).toBeInstanceOf(Date);
+        expect(saved.scheduledConfig).toEqual(scheduledConfig);
+    });
+
+    it("U-FC-10: setFlagConfig — update existing config: scheduledAt null → clears scheduledAt and scheduledConfig", async () => {
+        const existing: any = {
+            id: "cfg-1", isEnabled: true, strategyType: "boolean",
+            scheduledAt: new Date("2025-12-01"), scheduledConfig: { isEnabled: false },
+        };
+        configRepo.findOne.mockResolvedValue(existing);
+        configRepo.save.mockImplementation(async (cfg: any) => cfg);
+
+        await svc.setFlagConfig({
+            flag: mockFlag, environment: mockEnv, isEnabled: true,
+            scheduledAt: null,
+            scheduledConfig: null,
+        });
+
+        const saved = configRepo.save.mock.calls[0][0];
+        expect(saved.scheduledAt).toBeUndefined();
+        expect(saved.scheduledConfig).toBeUndefined();
+    });
+
+    it("U-FC-11: setFlagConfig — update existing config: scheduledAt undefined → schedule fields untouched", async () => {
+        const existingScheduledAt = new Date("2025-12-01");
+        const existingScheduledConfig = { isEnabled: false };
+        const existing: any = {
+            id: "cfg-1", isEnabled: true, strategyType: "boolean",
+            scheduledAt: existingScheduledAt, scheduledConfig: existingScheduledConfig,
+        };
+        configRepo.findOne.mockResolvedValue(existing);
+        configRepo.save.mockImplementation(async (cfg: any) => cfg);
+
+        // scheduledAt not provided → undefined → schedule block skipped
+        await svc.setFlagConfig({ flag: mockFlag, environment: mockEnv, isEnabled: false });
+
+        const saved = configRepo.save.mock.calls[0][0];
+        expect(saved.scheduledAt).toEqual(existingScheduledAt); // unchanged
+        expect(saved.scheduledConfig).toEqual(existingScheduledConfig); // unchanged
+    });
+
     it("U-FC-08: setFlagConfig — scheduledAt set → saved as Date object", async () => {
         configRepo.findOne.mockResolvedValue(null);
         configRepo.create.mockImplementation((data: any) => data);

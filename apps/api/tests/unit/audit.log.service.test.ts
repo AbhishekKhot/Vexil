@@ -100,4 +100,31 @@ describe("AuditLogService", () => {
 
         expect(result).toBeNull();
     });
+
+    it("U-AL-07: getLogs() — action filter applied when provided", async () => {
+        const qb = {
+            where: vi.fn().mockReturnThis(),
+            andWhere: vi.fn().mockReturnThis(),
+            orderBy: vi.fn().mockReturnThis(),
+            skip: vi.fn().mockReturnThis(),
+            take: vi.fn().mockReturnThis(),
+            getManyAndCount: vi.fn().mockResolvedValue([[], 0]),
+        };
+        repo.createQueryBuilder.mockReturnValue(qb);
+
+        await svc.getLogs("proj-1", { action: "flag.update" });
+
+        expect(qb.andWhere).toHaveBeenCalledWith(
+            expect.stringContaining("action"),
+            expect.objectContaining({ action: "flag.update" })
+        );
+    });
+
+    it("U-AL-08: getLogById() — log not found → returns null", async () => {
+        repo.findOne.mockResolvedValue(null);
+
+        const result = await svc.getLogById("missing-id", "proj-1");
+
+        expect(result).toBeNull();
+    });
 });

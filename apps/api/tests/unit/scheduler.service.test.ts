@@ -1,123 +1,152 @@
 import "reflect-metadata";
-// Unit tests: SegmentService
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { SegmentService } from "../../src/services/SegmentService";
+// Unit tests: SchedulerService (SS-1..10)
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { SchedulerService } from "../../src/services/SchedulerService";
 
-const makeSegmentRepo = () => ({
-    create: vi.fn((data: any) => data),
-    save: vi.fn(),
+const makeConfigRepo = () => ({
     find: vi.fn(),
-    findOne: vi.fn(),
-    delete: vi.fn(),
+    save: vi.fn(),
 });
 
-describe("SegmentService", () => {
-    let segmentRepo: ReturnType<typeof makeSegmentRepo>;
-    let svc: SegmentService;
+const makeRedis = () => ({
+    del: vi.fn().mockResolvedValue(1),
+});
+
+describe("SchedulerService", () => {
+    let configRepo: ReturnType<typeof makeConfigRepo>;
+    let redis: ReturnType<typeof makeRedis>;
+    let svc: SchedulerService;
 
     beforeEach(() => {
         vi.resetAllMocks();
-        segmentRepo = makeSegmentRepo();
-        svc = new SegmentService(segmentRepo as any);
+        vi.useFakeTimers();
+        configRepo = makeConfigRepo();
+        redis = makeRedis();
+        svc = new SchedulerService(configRepo as any, redis as any);
     });
 
-    // --- createSegment ---
-
-    it("U-SEG-01: createSegment — valid inputs → saves and returns segment", async () => {
-        const project = { id: "p-1" } as any;
-        const rules = { conditions: [{ attribute: "country", operator: "eq", values: ["US"] }] };
-        segmentRepo.save.mockResolvedValue({ id: "s-1", name: "US Users", rules });
-
-        const result = await svc.createSegment(project, "US Users", rules);
-
-        expect(segmentRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: "US Users", rules }));
-        expect(segmentRepo.save).toHaveBeenCalledTimes(1);
+    afterEach(() => {
+        svc.stop();
+        vi.useRealTimers();
     });
 
-    it("U-SEG-02: createSegment — name too short (1 char) → throws", async () => {
-        await expect(svc.createSegment({} as any, "x", {})).rejects.toThrow("at least 2 characters");
+    // --- start() / stop() ---
+
+    it("SS-1: start() — timer is non-null after first call", () => {
+        configRepo.find.mockResolvedValue([]);
+        svc.start();
+        expect((svc as any).timer).not.toBeNull();
     });
 
-    it("U-SEG-03: createSegment — empty name → throws", async () => {
-        await expect(svc.createSegment({} as any, "", {})).rejects.toThrow();
+    it("SS-2: start() is idempotent — second call does not replace the timer", () => {
+        configRepo.find.mockResolvedValue([]);
+        svc.start();
+        const firstTimer = (svc as any).timer;
+        svc.start();
+        expect((svc as any).timer).toBe(firstTimer);
     });
 
-    it("U-SEG-04: createSegment — null rules → throws", async () => {
-        await expect(svc.createSegment({} as any, "My Segment", null)).rejects.toThrow("valid targeting rules");
+    it("SS-3: stop() — clears timer and sets it to null", () => {
+        configRepo.find.mockResolvedValue([]);
+        svc.start();
+        svc.stop();
+        expect((svc as any).timer).toBeNull();
     });
 
-    it("U-SEG-05: createSegment — non-object rules (string) → throws", async () => {
-        await expect(svc.createSegment({} as any, "My Segment", "bad-rules")).rejects.toThrow();
+    it("SS-4: stop() on unstarted scheduler — no error, timer stays null", () => {
+        expect(() => svc.stop()).not.toThrow();
+        expect((svc as any).timer).toBeNull();
     });
 
-    it("U-SEG-06: createSegment — trims whitespace from name", async () => {
-        segmentRepo.save.mockResolvedValue({ id: "s-1" });
-        await svc.createSegment({ id: "p-1" } as any, "  My Segment  ", {});
-        expect(segmentRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: "My Segment" }));
+    // --- checkScheduledChanges() ---
+
+    it("SS-5: due config with scheduledConfig — applies isEnabled, strategyType, strategyConfig, clears scheduledAt and nullifies scheduledConfig", async () => {
+        const config: any = {
+            scheduledAt: new Date(Date.now() - 1000),
+            scheduledConfig: { isEnabled: true, strategyType: "rollout", strategyConfig: { percentage: 50 } },
+            environment: { id: "env-1" },
+            isEnabled: false,
+            strategyType: "boolean",
+            strategyConfig: null,
+        };
+        configRepo.find.mockResolvedValue([config]);
+        configRepo.save.mockResolvedValue(config);
+
+        await (svc as any).checkScheduledChanges();
+
+        expect(config.isEnabled).toBe(true);
+        expect(config.strategyType).toBe("rollout");
+        expect(config.strategyConfig).toEqual({ percentage: 50 });
+        expect(config.scheduledAt).toBeUndefined();
+        expect(config.scheduledConfig).toBeNull();
+        expect(configRepo.save).toHaveBeenCalledTimes(1);
     });
 
-    // --- listSegments ---
+    it("SS-6: due config without scheduledConfig — only clears scheduledAt, does not touch other fields", async () => {
+        const config: any = {
+            scheduledAt: new Date(Date.now() - 1000),
+            scheduledConfig: null,
+            environment: { id: "env-1" },
+            isEnabled: false,
+            strategyType: "boolean",
+        };
+        configRepo.find.mockResolvedValue([config]);
+        configRepo.save.mockResolvedValue(config);
 
-    it("U-SEG-07: listSegments — returns array for projectId", async () => {
-        segmentRepo.find.mockResolvedValue([{ id: "s-1" }, { id: "s-2" }]);
-        const result = await svc.listSegments("p-1");
-        expect(result).toHaveLength(2);
-        expect(segmentRepo.find).toHaveBeenCalledWith({ where: { project: { id: "p-1" } } });
+        await (svc as any).checkScheduledChanges();
+
+        expect(config.isEnabled).toBe(false);      // unchanged
+        expect(config.strategyType).toBe("boolean"); // unchanged
+        expect(config.scheduledAt).toBeUndefined();
+        expect(configRepo.save).toHaveBeenCalledTimes(1);
     });
 
-    // --- getSegment ---
+    it("SS-7: due config with scheduledConfig — busts Redis cache for the environment", async () => {
+        const config: any = {
+            scheduledAt: new Date(Date.now() - 1000),
+            scheduledConfig: { isEnabled: true },
+            environment: { id: "env-42" },
+            isEnabled: false,
+            strategyType: "boolean",
+        };
+        configRepo.find.mockResolvedValue([config]);
+        configRepo.save.mockResolvedValue(config);
 
-    it("U-SEG-08: getSegment — existing id → returns segment with project relation", async () => {
-        segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: { id: "p-1" } });
-        const result = await svc.getSegment("s-1");
-        expect(result ?.id).toBe("s-1");
-        expect(segmentRepo.findOne).toHaveBeenCalledWith({ where: { id: "s-1" }, relations: ["project"] });
+        await (svc as any).checkScheduledChanges();
+
+        expect(redis.del).toHaveBeenCalledWith("env_configs:env-42");
     });
 
-    it("U-SEG-09: getSegment — not found → returns null", async () => {
-        segmentRepo.findOne.mockResolvedValue(null);
-        expect(await svc.getSegment("missing")).toBeNull();
+    it("SS-8: Redis is undefined — no crash when busting cache after applying scheduled config", async () => {
+        const svcNoRedis = new SchedulerService(configRepo as any, undefined);
+        const config: any = {
+            scheduledAt: new Date(Date.now() - 1000),
+            scheduledConfig: { isEnabled: true },
+            environment: { id: "env-1" },
+            isEnabled: false,
+            strategyType: "boolean",
+        };
+        configRepo.find.mockResolvedValue([config]);
+        configRepo.save.mockResolvedValue(config);
+
+        await expect((svcNoRedis as any).checkScheduledChanges()).resolves.toBeUndefined();
     });
 
-    // --- updateSegment ---
+    it("SS-9: configRepo.find throws — error caught and logged, does not propagate to caller", async () => {
+        const spy = vi.spyOn(console, "error").mockImplementation(() => { });
+        configRepo.find.mockRejectedValue(new Error("DB connection lost"));
 
-    it("U-SEG-10: updateSegment — updates name, description, and rules", async () => {
-        const seg = { id: "s-1", name: "Old Name", description: "old", rules: {}, project: { id: "p-1" } };
-        segmentRepo.findOne.mockResolvedValue({ ...seg });
-        segmentRepo.save.mockImplementation(async (s: any) => s);
-
-        const newRules = { conditions: [] };
-        const result = await svc.updateSegment("s-1", { name: "New Name", description: "new desc", rules: newRules });
-
-        expect(result.name).toBe("New Name");
-        expect(result.description).toBe("new desc");
-        expect(result.rules).toEqual(newRules);
+        await expect((svc as any).checkScheduledChanges()).resolves.toBeUndefined();
+        expect(spy).toHaveBeenCalledWith("[SchedulerService]", expect.any(Error));
+        spy.mockRestore();
     });
 
-    it("U-SEG-11: updateSegment — segment not found → throws", async () => {
-        segmentRepo.findOne.mockResolvedValue(null);
-        await expect(svc.updateSegment("missing", { name: "X" })).rejects.toThrow("Segment not found");
-    });
+    it("SS-10: zero due configs — no saves, no Redis calls", async () => {
+        configRepo.find.mockResolvedValue([]);
 
-    it("U-SEG-12: updateSegment — name too short → throws", async () => {
-        segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: {} });
-        await expect(svc.updateSegment("s-1", { name: "x" })).rejects.toThrow("at least 2 characters");
-    });
+        await (svc as any).checkScheduledChanges();
 
-    it("U-SEG-13: updateSegment — invalid rules (non-object) → throws", async () => {
-        segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: {} });
-        await expect(svc.updateSegment("s-1", { rules: "bad" })).rejects.toThrow("Invalid rules");
-    });
-
-    // --- deleteSegment ---
-
-    it("U-SEG-14: deleteSegment — affected > 0 → returns true", async () => {
-        segmentRepo.delete.mockResolvedValue({ affected: 1 });
-        expect(await svc.deleteSegment("s-1")).toBe(true);
-    });
-
-    it("U-SEG-15: deleteSegment — affected = 0 → returns false", async () => {
-        segmentRepo.delete.mockResolvedValue({ affected: 0 });
-        expect(await svc.deleteSegment("missing")).toBe(false);
+        expect(configRepo.save).not.toHaveBeenCalled();
+        expect(redis.del).not.toHaveBeenCalled();
     });
 });

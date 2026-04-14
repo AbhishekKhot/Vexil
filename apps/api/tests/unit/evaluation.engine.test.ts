@@ -72,6 +72,44 @@ describe("EvaluationEngine", () => {
         expect(result.flags["test-flag"]).toBeDefined();
     });
 
+    it("U-EE-06: prerequisite evaluator returns null (prereq config not found) → PREREQUISITE_UNMET", async () => {
+        const configRepo = makeConfigRepo();
+        // Repo returns null — the prerequisite flag doesn't exist in this environment
+        configRepo.findOne.mockResolvedValue(null);
+        const engine = new EvaluationEngine(configRepo as any);
+
+        const config = makeConfig({
+            flag: { key: "flag-a", type: "release" },
+            isEnabled: true,
+            strategyType: "prerequisite",
+            strategyConfig: { flagKey: "flag-b", expectedValue: true },
+        });
+
+        const result = await engine.evaluate([config], {});
+
+        expect(result.flags["flag-a"].reason).toBe("PREREQUISITE_UNMET");
+        expect(result.flags["flag-a"].value).toBe(false);
+    });
+
+    it("U-EE-07: prerequisite flag evaluated at max depth (3) → evaluator is undefined → ERROR reason", async () => {
+        const spy = vi.spyOn(console, "error").mockImplementation(() => { });
+        const configRepo = makeConfigRepo();
+        const engine = new EvaluationEngine(configRepo as any);
+
+        const config = makeConfig({
+            flag: { key: "flag-deep", type: "release" },
+            isEnabled: true,
+            strategyType: "prerequisite",
+            strategyConfig: { flagKey: "flag-other", expectedValue: true },
+        });
+
+        // Pass depth=3 (= MAX_PREREQUISITE_DEPTH) — engine passes undefined as evaluator
+        const result = await engine.evaluate([config], {}, 3);
+
+        expect(result.flags["flag-deep"].reason).toBe("ERROR");
+        spy.mockRestore();
+    });
+
     it("U-EE-05: prerequisite at depth 3 evaluated; depth 4 returns ERROR (depth limit)", async () => {
         // Build a chain: flag-a depends on flag-b (depth 0 → 1 → 2 → depth 3 limit)
         const configRepo = makeConfigRepo();
