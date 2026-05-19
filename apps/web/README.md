@@ -31,7 +31,7 @@ Create `apps/web/.env` (or `apps/web/.env.local`):
 VITE_API_URL=http://localhost:3000
 ```
 
-In production, set this to your deployed API URL (e.g. `https://vexil-api.up.railway.app`).
+In production, set this to your deployed API URL (e.g. `https://vexil-api.example.com`).
 
 > The Vite dev server proxies `/api` and `/v1` to `VITE_API_URL` automatically — no CORS issues in development.
 
@@ -122,7 +122,7 @@ npm run build          # tsc + vite build → dist/
 npm run preview        # Serve dist/ locally for a smoke-test
 ```
 
-The `dist/` folder is a static SPA. Serve it with any static host (Nginx, Vercel, Railway static, etc.).
+The `dist/` folder is a static SPA. Serve it with any static host (Nginx, Vercel, etc.).
 
 **Nginx snippet** (for client-side routing):
 ```nginx

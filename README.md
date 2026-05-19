@@ -14,8 +14,7 @@ vexil/
 ├── packages/
 │   ├── sdk-js/       # @vexil/sdk-js — JS/TS SDK (npm package) →  packages/sdk-js/README.md
 │   └── types/        # @vexil/types — shared TypeScript types
-├── docker-compose.yml
-└── railway.toml      # Railway deployment config
+└── docker-compose.yml
 ```
 
 **Per-service setup guides live in each service's own README.** This document covers the overall system architecture, data model, and evaluation design.
@@ -384,29 +383,6 @@ cd apps/api && npm run migration:generate -- src/migrations/MyChange
 ```
 
 See [apps/api/README.md](apps/api/README.md#database-migrations) for the full migration guide including the upgrade path from `synchronize: true`.
-
----
-
-## Deployment (Railway)
-
-Config in `railway.toml` — two services: `api` and `web`.
-
-**API env vars:**
-
-| Variable | Description |
-|----------|-------------|
-| `DATABASE_URL` | PostgreSQL connection string (Railway plugin) |
-| `REDIS_URL` | Redis connection string (Railway plugin) |
-| `JWT_SECRET` | Random secret, min 32 chars (`openssl rand -hex 32`) |
-| `NODE_ENV` | `production` |
-| `PORT` | `3000` |
-| `WEB_URL` | Deployed web URL (CORS allowlist) |
-
-**Web env vars:**
-
-| Variable | Description |
-|----------|-------------|
-| `VITE_API_URL` | Deployed API URL, e.g. `https://vexil-api.up.railway.app` |
 
 ---
 

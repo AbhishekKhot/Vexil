@@ -16,7 +16,7 @@ export interface EvaluationContext {
 export interface VexilClientOptions {
   /** Environment API key (Bearer token) */
   apiKey: string;
-  /** Vexil API base URL, e.g. https://your-api.railway.app */
+  /** Vexil API base URL, e.g. https://vexil.example.com */
   baseUrl: string;
   /** Polling interval in ms (default: 30_000) */
   pollingInterval?: number;
