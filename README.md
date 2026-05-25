@@ -1,6 +1,6 @@
 # Vexil
 
-> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, and real-time evaluation.
+> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, and low-latency evaluation.
 
 ---
 
@@ -228,7 +228,7 @@ erDiagram
 
 ---
 
-## Docker Compose (Recommended — full stack in one command)
+## Docker Compose
 
 Runs PostgreSQL, Redis, the API, and the web dashboard together. The API container automatically runs database migrations before accepting traffic.
 
@@ -294,7 +294,7 @@ docker compose exec api sh -c "node -e \"const {AppDataSource}=require('./dist/d
 
 ---
 
-## Quick Start (Local Dev — without Docker for the API)
+## Quick Start (Local Dev)
 
 > Full setup instructions are in each service's README. This is the three-command path.
 
