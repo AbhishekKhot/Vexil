@@ -16,19 +16,124 @@ You change the rule in the dashboard; your app picks it up within ~60 seconds. N
 
 ```mermaid
 flowchart LR
-    Team([You / Team]) --> Dash[Dashboard<br/>:5173]
-    Dash -->|"create &amp; configure flags"| API[Vexil API<br/>:3000]
-    API --> DB[(Postgres<br/>+ Redis cache)]
+    Team(["End User"]) --> Dash["Dashboard<br/>:5173"]
+    Dash -->|"create and configure flags"| API["Vexil API<br/>:3000"]
+    API --> DB[("Postgres<br/>+ Redis cache")]
 
-    YourApp[Your App] -->|"isEnabled('checkout')"| SDK[@vexil/sdk-js]
-    SDK -->|"POST /v1/flags/evaluate<br/>every 30s"| API
+    YourApp["Client App"] -->|"isEnabled('checkout')"| SDK["vexil/sdk-js"]
+    SDK -->|"POST /v1/flags/evaluate every 30s"| API
 ```
 
 Three moving parts:
 
-1. **Dashboard** — where you and your team create flags and pick rules.
+1. **Dashboard** — where the end user (you / your team) creates flags and picks rules.
 2. **API** — stores everything in Postgres, answers evaluation requests, caches hot reads in Redis.
-3. **SDK** — drops into your app, asks the API once at startup + every 30 seconds, serves answers from memory.
+3. **SDK** — drops into your client app, asks the API once at startup + every 30 seconds, serves answers from memory.
+
+---
+
+## Flag evaluation — request / response flow
+
+What happens when the client app asks Vexil to evaluate flags:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Client App
+    participant SDK as VexilClient
+    participant API as Vexil API
+    participant Redis
+    participant DB as Postgres
+
+    App->>SDK: client.init({ userId, country, plan })
+    SDK->>API: POST /v1/flags/evaluate (Bearer vex_...)
+    Note over API: token-bucket check<br/>(Redis key eval_bucket:{apiKey})
+    API->>Redis: GET env_apikey:{apiKey}
+    alt cache miss
+        API->>DB: SELECT environment WHERE apiKey = ?
+        API->>Redis: SET env_apikey (TTL 5 min)
+    end
+    API->>Redis: GET env_configs:{envId}
+    alt cache miss
+        API->>DB: SELECT flag_environment_configs WHERE envId = ?
+        API->>Redis: SET env_configs (TTL 30 s)
+    end
+    Note over API: EvaluationEngine loops every flag<br/>→ StrategyFactory → strategy.evaluate(ctx)<br/>(errors per flag isolated → reason ERROR)
+    API-->>SDK: { flags: key -> { value, type, variant, reason } }
+    SDK->>SDK: cache in memory, fire onFlagsUpdated
+    SDK-->>App: ready
+
+    App->>SDK: client.isEnabled('new-checkout')
+    SDK-->>App: true  (synchronous read, no network)
+
+    loop every 30 s in background
+        SDK->>API: POST /v1/flags/evaluate (refresh)
+    end
+```
+
+Specifics worth noting:
+
+- **Authorization** — data-plane auth is the environment API key, sent as `Bearer vex_…`. No JWT.
+- **Two-layer cache** — env lookup (5 min) + flag configs (30 s). Both stored in Redis. Cold path hits Postgres; warm path is in-process.
+- **Failure isolation** — a broken strategy config for one flag returns `reason: "ERROR"` for that flag only; the rest still evaluate.
+- **Determinism** — rollout/AB test bucketing uses `djb2(userId + flagKey) % 100`, so the same user always lands in the same bucket for the same flag.
+- **Client-side reads are free** — once `init()` returns, `isEnabled()` / `getValue()` are synchronous in-memory lookups. The 30 s background poll keeps the cache fresh.
+
+---
+
+## Dashboard flow — creating and configuring a flag
+
+What happens when the end user manages flags via the dashboard:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as End User
+    participant Dash as Dashboard
+    participant API as Vexil API
+    participant DB as Postgres
+    participant Redis
+
+    Note over User,Dash: 1. Log in
+    User->>Dash: email + password
+    Dash->>API: POST /api/auth/login
+    API->>DB: SELECT user, bcrypt.compare(password)
+    API-->>Dash: { token } (JWT, 8 h)
+    Dash->>Dash: store JWT, attach as Bearer on every request
+
+    Note over User,Dash: 2. Create a flag
+    User->>Dash: New Flag (key, name, type)
+    Dash->>API: POST /api/projects/:id/flags
+    Note over API: requireRole(ADMIN, MEMBER)<br/>verify project.org === user.org
+    API->>DB: INSERT INTO flags
+    API->>DB: INSERT INTO audit_logs
+    API-->>Dash: { id, key, type, ... }
+
+    Note over User,Dash: 3. Configure strategy per environment
+    User->>Dash: pick "rollout 25%" for prod
+    Dash->>API: PUT /api/projects/:id/flags/:flagId/config/:envId
+    API->>DB: UPSERT flag_environment_configs<br/>(strategyType, strategyConfig)
+    API->>Redis: DEL env_configs:{envId}  (bust cache)
+    API->>DB: INSERT INTO audit_logs
+    API-->>Dash: { isEnabled, strategyType, strategyConfig }
+
+    Note over User,Dash: 4. Optional — schedule a future change
+    User->>Dash: set scheduledAt + scheduledConfig
+    Dash->>API: PUT .../config/:envId (with schedule fields)
+    API->>DB: UPSERT with scheduled_change_at, scheduled_change_config
+    Note over API: SchedulerService polls every 60 s<br/>→ promotes scheduled config when due<br/>→ busts env_configs cache
+
+    Note over User,Dash: SDK clients pick up the new config on their next poll (≤ 30 s)
+```
+
+Specifics worth noting:
+
+- **Auth** — every control-plane request needs the JWT in `Authorization: Bearer <token>`. Tokens expire after 8 hours.
+- **RBAC** — `ADMIN` = full access, `MEMBER` = create/update, `VIEWER` = read-only. Roles checked per route.
+- **Org isolation** — every write verifies the project belongs to the caller's organisation. Cross-org access returns 404 (never leaks existence).
+- **Audit trail** — every create / update / delete writes an immutable row to `audit_logs` (who, what, before/after).
+- **Cache invalidation** — saving a flag config does `DEL env_configs:{envId}` in Redis so the next SDK poll sees the change instantly instead of waiting for the 30 s TTL.
+- **Scheduled rollouts** — `SchedulerService` runs on a 60 s timer in the API process; it promotes the `scheduled_change_config` to live when `scheduled_change_at` is reached.
 
 ---
 
