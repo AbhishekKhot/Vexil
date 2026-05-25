@@ -25,7 +25,7 @@ export async function registerOpenApi(fastify: FastifyInstance) {
             tags: [
                 { name: "Auth" }, { name: "Projects" }, { name: "Environments" },
                 { name: "Flags" }, { name: "Flag Config" }, { name: "Segments" },
-                { name: "Analytics" }, { name: "Evaluation" }, { name: "Audit Log" },
+                { name: "Evaluation" }, { name: "Audit Log" },
             ],
         },
     });

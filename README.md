@@ -1,6 +1,6 @@
 # Vexil
 
-> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, real-time evaluation, and a built-in analytics pipeline.
+> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, and real-time evaluation.
 
 ---
 
@@ -36,7 +36,7 @@ graph TB
     end
 
     subgraph sdk["@vexil/sdk-js"]
-        SDKJS["VexilClient\npolling · analytics buffer"]:::sdk
+        SDKJS["VexilClient\npolling"]:::sdk
     end
 
     subgraph control["Control Plane  (apps/web + /api/*)"]
@@ -47,7 +47,6 @@ graph TB
 
     subgraph data["Data Plane  (/v1/*)"]
         EVAL["POST /v1/flags/evaluate\nAPI-key auth"]:::plane
-        EVENTS["POST /v1/events\nanalytics ingest"]:::plane
     end
 
     subgraph infra["Infrastructure"]
@@ -57,13 +56,11 @@ graph TB
 
     APP1 & APP2 --> SDKJS
     SDKJS --> EVAL
-    SDKJS --> EVENTS
     DASH --> API
     API --> PG
     API --> REDIS
     EVAL --> REDIS
     EVAL --> PG
-    EVENTS --> PG
     SCHED --> PG
     SCHED --> REDIS
 ```
@@ -72,8 +69,8 @@ graph TB
 
 | Plane | Prefix | Auth | Purpose |
 |-------|--------|------|---------|
-| Control | `/api/*` | JWT (8h) | Dashboard CRUD — projects, flags, environments, analytics |
-| Data | `/v1/*` | API key (`vex_…`) | SDK flag evaluation + analytics event ingestion |
+| Control | `/api/*` | JWT (8h) | Dashboard CRUD — projects, flags, environments |
+| Data | `/v1/*` | API key (`vex_…`) | SDK flag evaluation |
 
 ---
 
@@ -107,11 +104,6 @@ sequenceDiagram
     API-->>SDK: { flags: { key: { value, type, variant, reason } } }
     SDK->>SDK: in-memory cache + polling timer (default 30s)
     SDK-->>App: FlagMap — zero-latency reads
-
-    loop Every 30s or 1000 buffered events
-        SDK->>API: POST /v1/events (batch)
-        API->>DB: INSERT evaluation_events
-    end
 ```
 
 ---
@@ -205,14 +197,6 @@ erDiagram
         jsonb conditions
         uuid project_id FK
     }
-    EVALUATION_EVENT {
-        uuid id PK
-        string flag_key
-        boolean result
-        jsonb context_snapshot
-        timestamp created_at
-        uuid environment_id FK
-    }
     AUDIT_LOG {
         uuid id PK
         string action
@@ -230,39 +214,7 @@ erDiagram
     PROJECT ||--o{ AUDIT_LOG : tracks
     FLAG ||--o{ FLAG_ENVIRONMENT_CONFIG : "configured per env"
     ENVIRONMENT ||--o{ FLAG_ENVIRONMENT_CONFIG : "stores configs"
-    ENVIRONMENT ||--o{ EVALUATION_EVENT : records
 ```
-
----
-
-## Analytics Pipeline
-
-```mermaid
-flowchart LR
-    classDef sdk fill:#0891b2,stroke:#0e7490,color:#fff
-    classDef api fill:#1e293b,stroke:#334155,color:#e2e8f0
-    classDef db fill:#166534,stroke:#14532d,color:#fff
-
-    subgraph sdk["SDK"]
-        EVAL_CALL["client.init()"]:::sdk
-        BUFFER["In-Memory Buffer"]:::sdk
-        FLUSH{"Flush: 30s OR 1000 events"}:::sdk
-    end
-
-    subgraph api["Data Plane"]
-        ENDPOINT["POST /v1/events"]:::api
-        INSERT["INSERT evaluation_events (batch)"]:::api
-    end
-
-    subgraph db["PostgreSQL"]
-        EVENTS_TABLE[("evaluation_events")]:::db
-        STATS["GROUP BY → dashboard stats"]:::db
-    end
-
-    EVAL_CALL --> BUFFER --> FLUSH -->|batch POST| ENDPOINT --> INSERT --> EVENTS_TABLE -->|aggregated| STATS
-```
-
-PII fields (`email`, `name`, and other common PII keys) are stripped from the context snapshot before storage.
 
 ---
 
@@ -386,22 +338,3 @@ See [apps/api/README.md](apps/api/README.md#database-migrations) for the full mi
 
 ---
 
-## Feature Matrix
-
-| Area | Capabilities |
-|------|-------------|
-| Auth | JWT register/login, RBAC (ADMIN / MEMBER / VIEWER) |
-| Management | Projects, Environments, Flags CRUD, API key per environment |
-| Strategies | Boolean, Rollout, User Targeting, Attribute Matching, Targeted Rollout, A/B Test, Time Window, Prerequisite |
-| Targeting | Segment builder with attribute rule editor |
-| Scheduling | Per-flag scheduled activation with `scheduledAt` |
-| Analytics | Evaluation event buffering, pass-rate dashboard |
-| Audit | Full immutable audit log per project |
-| Performance | Redis cache (30s config / 5min env TTL), cache-busted on save |
-| SDK | JS/TS — polling, analytics buffering, typed API |
-| Security | RBAC, org isolation, rate limiting, HSTS, CSP headers |
-| API Docs | Swagger UI at `/docs` |
-
----
-
-**Vexil — Performance + Determinism + Developer Experience**

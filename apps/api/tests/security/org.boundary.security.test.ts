@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
 import { TEST_JWT_SECRET, TEST_ORG_ID, signToken } from "../helpers/buildTestApp";
-import { UserRole } from "../../src/entities/User";
 
 // User from Org A trying to access Org B's resources
 const ORG_A = TEST_ORG_ID;
@@ -18,7 +17,6 @@ const services = {
     getFlag: vi.fn(),
     deleteFlag: vi.fn(),
     getFlagConfig: vi.fn(),
-    getAnalytics: vi.fn(),
     getLogById: vi.fn(),
     getEnvironment: vi.fn(),
     deleteEnvironment: vi.fn(),
@@ -67,11 +65,6 @@ async function buildApp() {
         return c ? reply.code(200).send(c) : reply.code(404).send({ error: "Not found" });
     });
 
-    app.get("/api/projects/:projectId/stats", {}, async (req: any, reply) => {
-        const stats = await services.getAnalytics(req.params.projectId, req.user.organizationId);
-        return reply.code(200).send(stats); // returns [] for wrong org — no 403
-    });
-
     app.get("/api/projects/:projectId/audit-logs/:id", {}, async (req: any, reply) => {
         const log = await services.getLogById(req.params.id, req.params.projectId);
         return log ? reply.code(200).send(log) : reply.code(404).send({ error: "Not found" });
@@ -115,7 +108,6 @@ describe("Security: Org Boundary", () => {
         vi.clearAllMocks();
         // By default, getProject returns null when org doesn't match
         services.getProject.mockResolvedValue(null);
-        services.getAnalytics.mockResolvedValue([]);
         services.getLogById.mockResolvedValue(null);
         services.getFlag.mockResolvedValue(null);
         services.getEnvironment.mockResolvedValue(null);
@@ -143,12 +135,6 @@ describe("Security: Org Boundary", () => {
     it("SEC-O-04: Org A gets flag config for Org B's env/flag → 404", async () => {
         const res = await app.inject({ method: "GET", url: "/api/projects/p-b/environments/e-b/flags/f-b/config", headers: { authorization: `Bearer ${tokenOrgA()}` } });
         expect(res.statusCode).toBe(404);
-    });
-
-    it("SEC-O-05: Org A reads analytics for Org B's project → 200 but empty array (no leak)", async () => {
-        const res = await app.inject({ method: "GET", url: "/api/projects/p-b/stats", headers: { authorization: `Bearer ${tokenOrgA()}` } });
-        expect(res.statusCode).toBe(200);
-        expect(res.json()).toEqual([]);
     });
 
     it("SEC-O-06: Org A reads audit log by ID from Org B → 404", async () => {

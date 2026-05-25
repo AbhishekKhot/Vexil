@@ -9,9 +9,6 @@ const makeEnvironmentRepo = () => ({
 const makeConfigRepo = () => ({
     find: vi.fn(),
 });
-const makeEventRepo = () => ({
-    insert: vi.fn().mockResolvedValue({}),
-});
 const makeRedis = () => ({
     get: vi.fn(),
     set: vi.fn().mockResolvedValue("OK"),
@@ -20,7 +17,6 @@ const makeRedis = () => ({
 describe("EvaluationService", () => {
     let environmentRepo: ReturnType<typeof makeEnvironmentRepo>;
     let configRepo: ReturnType<typeof makeConfigRepo>;
-    let eventRepo: ReturnType<typeof makeEventRepo>;
     let redis: ReturnType<typeof makeRedis>;
     let svc: EvaluationService;
 
@@ -28,14 +24,12 @@ describe("EvaluationService", () => {
         vi.resetAllMocks();
         environmentRepo = makeEnvironmentRepo();
         configRepo = makeConfigRepo();
-        eventRepo = makeEventRepo();
         redis = makeRedis();
         // Default: no cached data in Redis
         redis.get.mockResolvedValue(null);
         svc = new EvaluationService(
             environmentRepo as any,
             configRepo as any,
-            eventRepo as any,
             redis as any,
         );
     });
@@ -121,72 +115,5 @@ describe("EvaluationService", () => {
 
         expect(result["my-flag"]).toBeDefined();
         expect(result["my-flag"].value).toBe(true);
-    });
-
-    it("U-ES-07: evaluateFlags — PII fields stripped before logging events", async () => {
-        const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
-        environmentRepo.findOne.mockResolvedValue(env);
-        redis.get.mockResolvedValue(null);
-        const configs = [
-            {
-                flag: { key: "flag-a" },
-                environment: { id: "env-1" },
-                isEnabled: true,
-                strategyType: "boolean",
-                strategyConfig: { strategyType: "boolean" },
-                scheduledAt: null,
-                scheduledConfig: null,
-            },
-        ];
-        configRepo.find.mockResolvedValue(configs);
-        eventRepo.insert.mockResolvedValue({});
-
-        await svc.evaluateFlags("vex_abc", {
-            userId: "u-1",          // PII
-            email: "a@b.com",       // PII
-            country: "US",          // safe
-        });
-
-        // Give the fire-and-forget a tick to run
-        await new Promise(r => setTimeout(r, 10));
-
-        const insertedEvents = eventRepo.insert.mock.calls[0] ?.[0] as any[];
-        if (insertedEvents) {
-            const ctx = insertedEvents[0] ?.context;
-            // PII fields must not appear in stored context
-            if (ctx) {
-                expect(ctx.userId).toBeUndefined();
-                expect(ctx.email).toBeUndefined();
-                expect(ctx.country).toBe("US");
-            }
-        }
-    });
-
-    it("U-ES-08: evaluateFlags — all-PII context → context stored as undefined (no keys left)", async () => {
-        const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
-        environmentRepo.findOne.mockResolvedValue(env);
-        redis.get.mockResolvedValue(null);
-        configRepo.find.mockResolvedValue([
-            {
-                flag: { key: "flag-b" },
-                environment: { id: "env-1" },
-                isEnabled: true,
-                strategyType: "boolean",
-                strategyConfig: { strategyType: "boolean" },
-                scheduledAt: null,
-                scheduledConfig: null,
-            },
-        ]);
-        eventRepo.insert.mockResolvedValue({});
-
-        await svc.evaluateFlags("vex_abc", { userId: "u-1", email: "a@b.com" });
-
-        await new Promise(r => setTimeout(r, 10));
-
-        const insertedEvents = eventRepo.insert.mock.calls[0] ?.[0] as any[];
-        if (insertedEvents) {
-            // When no non-PII keys remain, context should be undefined
-            expect(insertedEvents[0] ?.context).toBeUndefined();
-        }
     });
 });

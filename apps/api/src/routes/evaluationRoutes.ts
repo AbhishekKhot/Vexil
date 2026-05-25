@@ -3,7 +3,6 @@ import { EvaluationController } from "../controllers/EvaluationController";
 import { EvaluationService } from "../services/EvaluationService";
 import { Environment } from "../entities/Environment";
 import { FlagEnvironmentConfig } from "../entities/FlagEnvironmentConfig";
-import { EvaluationEvent } from "../entities/EvaluationEvent";
 import { makeEvalThrottle } from "../middleware/evalThrottle";
 import { LIMITS } from "../app";
 import evaluationSchemas from "./schemas/evaluation.schema.json";
@@ -13,7 +12,6 @@ export default async function evaluationRoutes(fastify: FastifyInstance) {
         new EvaluationService(
             fastify.orm.getRepository(Environment),
             fastify.orm.getRepository(FlagEnvironmentConfig),
-            fastify.orm.getRepository(EvaluationEvent),
             fastify.redis,
         ),
     );

@@ -10,7 +10,6 @@ import FlagsTab from './pages/flags/FlagsTab';
 import FlagConfigurePage from './pages/flags/FlagConfigurePage';
 import EnvironmentsTab from './pages/environments/EnvironmentsTab';
 import SegmentsTab from './pages/segments/SegmentsTab';
-import AnalyticsTab from './pages/analytics/AnalyticsTab';
 import AuditLogTab from './pages/auditlogs/AuditLogTab';
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -37,7 +36,6 @@ function AppRoutes() {
           <Route index element={<FlagsTab />} />
           <Route path="environments" element={<EnvironmentsTab />} />
           <Route path="segments" element={<SegmentsTab />} />
-          <Route path="analytics" element={<AnalyticsTab />} />
           <Route path="audit-logs" element={<AuditLogTab />} />
         </Route>
         <Route path="projects/:projectId/flags/:flagId" element={<FlagConfigurePage />} />

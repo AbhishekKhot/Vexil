@@ -48,7 +48,6 @@ async function buildApp(options: {
     registerLimit?: number;
     loginLimit?: number;
     evalLimit?: number;
-    eventsLimit?: number;
     controlWriteLimit?: number;
     controlReadLimit?: number;
     evalBucketCapacity?: number;
@@ -91,7 +90,6 @@ async function buildApp(options: {
 
     // Data plane
     app.post("/v1/flags/evaluate", { config: { rateLimit: { max: options.evalLimit ?? 100, timeWindow: "1d" } }, preHandler: [throttle] }, async (_req, reply) => reply.code(200).send({ flags: {} }));
-    app.post("/v1/events", { config: { rateLimit: { max: options.eventsLimit ?? 50, timeWindow: "1d" } } }, async (_req, reply) => reply.code(202).send({ status: "accepted" }));
 
     // Control plane
     app.post("/api/projects", { config: { rateLimit: { max: options.controlWriteLimit ?? 50, timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(201).send({ id: "p-1" }));
@@ -143,13 +141,6 @@ describe("Rate Limit Tests", () => {
         const results = await hitN(app, 101, { method: "POST", url: "/v1/flags/evaluate", headers: { authorization: "Bearer vex_ratelimitk001" }, payload: {} });
         expect(results.slice(0, 100).every(s => s === 200)).toBe(true);
         expect(results[100]).toBe(429);
-    });
-
-    it("RL-05: POST /v1/events — 51st request → 429 (limit=50)", async () => {
-        app = await buildApp({ eventsLimit: 50 });
-        const results = await hitN(app, 51, { method: "POST", url: "/v1/events", headers: { authorization: "Bearer vex_eventskey01" }, payload: [{ flagKey: "f", result: true }] });
-        expect(results.slice(0, 50).every(s => s === 202)).toBe(true);
-        expect(results[50]).toBe(429);
     });
 
     it("RL-06: Control plane write — 51st request → 429 (limit=50)", async () => {

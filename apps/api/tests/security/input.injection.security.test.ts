@@ -1,13 +1,11 @@
 import "reflect-metadata";
-// Security tests: Input & Injection (SEC-I-01..08)
+// Security tests: Input & Injection
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
 import { TEST_JWT_SECRET, signToken } from "../helpers/buildTestApp";
-import { UserRole } from "../../src/entities/User";
 
 const mockServices = {
-    ingestEvents: vi.fn(),
     getLogs: vi.fn(),
     login: vi.fn(),
     register: vi.fn(),
@@ -31,14 +29,8 @@ async function buildApp() {
         } catch { return reply.code(401).send({ error: "Unauthorized" }); }
     });
 
-    // POST /v1/events — batch ingest
-    app.post("/v1/events", {}, async (req: any, reply) => {
-        const events = req.body;
-        try {
-            await mockServices.ingestEvents("vex_key", events);
-            return reply.code(202).send({ status: "accepted" });
-        } catch (err: any) { return reply.code(400).send({ error: err.message }); }
-    });
+    // POST flag evaluate — used for body-limit check
+    app.post("/v1/flags/evaluate", {}, async (_req, reply) => reply.code(200).send({ flags: {} }));
 
     // GET audit logs with limit param
     app.get("/api/projects/:projectId/audit-logs", { preHandler: [(app as any).authenticate] }, async (req: any, reply) => {
@@ -82,18 +74,11 @@ describe("Security: Input & Injection", () => {
     it("SEC-I-01: Request body > 512KB → 413 (Fastify bodyLimit)", async () => {
         const bigBody = "x".repeat(600 * 1024); // 600 KB > 512 KB limit
         const res = await app.inject({
-            method: "POST", url: "/v1/events",
+            method: "POST", url: "/v1/flags/evaluate",
             headers: { "content-type": "application/json" },
             payload: bigBody,
         });
         expect(res.statusCode).toBe(413);
-    });
-
-    it("SEC-I-02: POST /v1/events with 501 items → 400", async () => {
-        mockServices.ingestEvents.mockRejectedValue(new Error("Batch too large. Maximum 500 events per request."));
-        const events = Array.from({ length: 501 }, (_, i) => ({ flagKey: `f-${i}`, result: true }));
-        const res = await app.inject({ method: "POST", url: "/v1/events", payload: events });
-        expect(res.statusCode).toBe(400);
     });
 
     it("SEC-I-03: Audit log list with ?limit=99999 → limit capped to 100", async () => {
@@ -103,22 +88,6 @@ describe("Security: Input & Injection", () => {
         });
         expect(res.statusCode).toBe(200);
         expect(mockServices.getLogs).toHaveBeenCalledWith("p-1", expect.objectContaining({ limit: 100 }));
-    });
-
-    it("SEC-I-04: Context with 10KB object → service receives null context (silently stripped)", async () => {
-        const events = [{ flagKey: "f", result: true, context: { data: "x".repeat(10 * 1024) } }];
-        mockServices.ingestEvents.mockImplementation(async (_key: any, evts: any[]) => {
-            // Simulate what AnalyticsService does: strip > 2KB context
-            const ctx = evts[0].context;
-            const serialized = JSON.stringify(ctx);
-            if (serialized.length > 2048) {
-                evts[0].context = null;
-            }
-            return true;
-        });
-        await app.inject({ method: "POST", url: "/v1/events", payload: events });
-        const callArg = mockServices.ingestEvents.mock.calls[0][1];
-        expect(callArg[0].context).toBeNull();
     });
 
     it("SEC-I-05: Flag key with SQL injection chars → 400 (createFlag rejects)", async () => {
@@ -138,9 +107,6 @@ describe("Security: Input & Injection", () => {
     });
 
     it("SEC-I-06: Strategy config with __proto__ key → does not pollute Object.prototype", async () => {
-        const originalProto = Object.prototype as any;
-        const before = originalProto.polluted;
-
         await app.inject({
             method: "PUT",
             url: "/api/projects/p-1/flags/f-1/config",
@@ -178,7 +144,6 @@ describe("Security: Input & Injection", () => {
             method: "GET", url: "/test",
             headers: { origin: "http://evil.com" },
         });
-        // Fastify CORS sends 500 for blocked origins by default, or 200 without the Access-Control-Allow-Origin header
         // The important assertion is that the CORS header is NOT set for the disallowed origin
         expect(res.headers["access-control-allow-origin"]).not.toBe("http://evil.com");
         await corsApp.close();

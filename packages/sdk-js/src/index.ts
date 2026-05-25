@@ -20,8 +20,6 @@ export interface VexilClientOptions {
   baseUrl: string;
   /** Polling interval in ms (default: 30_000) */
   pollingInterval?: number;
-  /** Flush analytics events every N ms (default: 10_000) */
-  flushInterval?: number;
   /** Called when the flag cache is refreshed */
   onFlagsUpdated?: (flags: Record<string, FlagResult>) => void;
   /** Called on errors */
@@ -35,41 +33,36 @@ export interface VexilClientOptions {
  *   const client = new VexilClient({ apiKey, baseUrl });
  *   await client.init({ userId: 'alice' });
  *   if (client.isEnabled('my-flag')) { ... }
- *   await client.destroy(); // flush events + stop polling
+ *   await client.destroy(); // stop polling
  */
 export class VexilClient {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   private readonly pollingInterval: number;
-  private readonly flushInterval: number;
   private readonly onFlagsUpdated?: (flags: Record<string, FlagResult>) => void;
   private readonly onError?: (err: Error) => void;
 
   private flags: Record<string, FlagResult> = {};
   private context: EvaluationContext = {};
   private pollTimer: ReturnType<typeof setInterval> | null = null;
-  private flushTimer: ReturnType<typeof setInterval> | null = null;
-  private eventQueue: Array<{ flagKey: string; result: boolean; context?: unknown; timestamp: string }> = [];
 
   constructor(options: VexilClientOptions) {
     this.apiKey = options.apiKey;
     // Strip trailing slash so callers don't have to worry about it.
     this.baseUrl = options.baseUrl.replace(/\/$/, '');
     this.pollingInterval = options.pollingInterval ?? 30_000;
-    this.flushInterval = options.flushInterval ?? 10_000;
     this.onFlagsUpdated = options.onFlagsUpdated;
     this.onError = options.onError;
   }
 
   /**
-   * Fetches flags for the given context, then starts background polling and event flushing.
+   * Fetches flags for the given context, then starts background polling.
    * Must be called before any flag reads.
    */
   async init(context?: EvaluationContext): Promise<void> {
     if (context) this.context = context;
     await this.refresh();
     this.pollTimer = setInterval(() => this.refresh().catch(this.handleError.bind(this)), this.pollingInterval);
-    this.flushTimer = setInterval(() => this.flush().catch(this.handleError.bind(this)), this.flushInterval);
   }
 
   /**
@@ -105,26 +98,9 @@ export class VexilClient {
     return (flag.value as T) ?? defaultValue;
   }
 
-  /** Manually enqueues an evaluation event for analytics. Events are flushed on the flushInterval. */
-  track(flagKey: string, result: boolean, context?: unknown): void {
-    this.eventQueue.push({ flagKey, result, context, timestamp: new Date().toISOString() });
-  }
-
-  /**
-   * Sends all buffered events to the API in one batch and empties the queue.
-   * splice(0) is atomic — no events are lost if a concurrent track() fires during the flush.
-   */
-  async flush(): Promise<void> {
-    if (this.eventQueue.length === 0) return;
-    const batch = this.eventQueue.splice(0, this.eventQueue.length);
-    await this.post('/v1/events', batch);
-  }
-
-  /** Stops polling and event timers, then flushes any remaining events. */
+  /** Stops the polling timer. */
   async destroy(): Promise<void> {
     if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
-    if (this.flushTimer) { clearInterval(this.flushTimer); this.flushTimer = null; }
-    await this.flush().catch(() => {});
   }
 
   /** Calls the evaluate endpoint and updates the local flag cache. */

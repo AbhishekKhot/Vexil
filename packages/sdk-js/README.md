@@ -2,7 +2,7 @@
 
 JavaScript / TypeScript SDK for the Vexil feature flag platform.
 
-Features: polling evaluation · in-memory flag cache · analytics buffering · typed API · zero runtime dependencies (beyond `@vexil/types`)
+Features: polling evaluation · in-memory flag cache · typed API · zero runtime dependencies (beyond `@vexil/types`)
 
 ---
 
@@ -43,7 +43,7 @@ const limit  = client.getValue<number>("rate-limit", 100);
 // Switch user context (e.g. on login)
 await client.identify({ userId: "u_99", plan: "free" });
 
-// Graceful shutdown — flushes buffered analytics, stops polling timer
+// Graceful shutdown — stops polling timer
 await client.destroy();
 ```
 
@@ -125,7 +125,7 @@ console.log(flags["new-checkout"]?.value); // true | false | string | number | o
 
 ### `client.destroy()`
 
-Stops the polling timer and flushes any buffered analytics events. Call this on app shutdown or when unmounting a React root.
+Stops the polling timer. Call this on app shutdown or when unmounting a React root.
 
 ```typescript
 await client.destroy();
@@ -144,16 +144,6 @@ Reserved keys with special meaning:
 | `userId` | Rollout bucketing (djb2 hash), user-targeting whitelist |
 
 All other keys are available for attribute-matching rules configured in the dashboard.
-
----
-
-## Analytics
-
-The SDK automatically buffers analytics events and flushes them to `POST /v1/events` when either:
-- 30 seconds have elapsed since the last flush, **or**
-- 1000 events have accumulated
-
-Events record which flags were evaluated and their results. PII fields are stripped server-side before storage.
 
 ---
 

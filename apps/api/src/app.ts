@@ -11,7 +11,6 @@ import segmentRoutes from "./routes/segmentRoutes";
 import evaluationRoutes from "./routes/evaluationRoutes";
 import authRoutes from "./routes/authRoutes";
 import auditLogRoutes from "./routes/auditLogRoutes";
-import { analyticsDataRoutes, analyticsControlRoutes } from "./routes/analyticsRoutes";
 import { authMiddleware } from "./middleware/authMiddleware";
 import { registerOpenApi } from "./openapi";
 import { getRedisClient } from "./utils/redis";
@@ -41,7 +40,6 @@ const LIMITS = {
     // Data plane: SDK evaluation — SDK polls every 30s, so 50/day ≈ 25min of polling
     // Raise MAX_EVAL_PER_DAY env var if needed for demos without redeploying.
     evaluate: { max: parseInt(process.env.MAX_EVAL_PER_DAY || "100", 10), timeWindow: 24 * 60 * 60 * 1000 },
-    events: { max: 50, timeWindow: 24 * 60 * 60 * 1000 }, // 50 event batches/day per key
 } as const;
 
 /**
@@ -140,12 +138,10 @@ export async function buildApp(dataSource: DataSource) {
         api.register(flagConfigRoutes, { prefix: "/projects" });
         api.register(segmentRoutes, { prefix: "/projects" });
         api.register(auditLogRoutes, { prefix: "/projects" });
-        api.register(analyticsControlRoutes, { prefix: "/projects" });
     }, { prefix: "/api" });
 
     // ── Data plane (API-key auth, per-route limits) ───────────────────────────
     fastify.register(evaluationRoutes, { prefix: "/v1" });
-    fastify.register(analyticsDataRoutes, { prefix: "/v1" });
 
     return fastify;
 }

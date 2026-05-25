@@ -30,7 +30,7 @@ export type StrategyConfig =
 export type StrategyType = StrategyConfig["strategyType"];
 
 // reason tells the caller *why* a flag resolved the way it did —
-// used for analytics, debugging, and SDK consumers.
+// used for debugging and SDK consumers.
 export type EvaluationReason =
     | "DISABLED" | "ENABLED" | "ROLLOUT_IN" | "ROLLOUT_OUT"
     | "TARGETED_IN" | "TARGETED_OUT" | "USER_WHITELIST" | "USER_FALLTHROUGH"

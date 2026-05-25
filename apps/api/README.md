@@ -3,7 +3,7 @@
 Fastify backend powering the Vexil feature flag platform. Exposes two planes:
 
 - **Control plane** (`/api/*`) — JWT-protected, used by the dashboard for CRUD operations
-- **Data plane** (`/v1/*`) — API-key-protected, used by SDK clients for evaluation and analytics
+- **Data plane** (`/v1/*`) — API-key-protected, used by SDK clients for evaluation
 
 ---
 
@@ -160,14 +160,6 @@ Flag types: `boolean`, `string`, `number`, `json`.
 
 ---
 
-### Analytics (`/api/projects/:projectId/analytics`)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `.../analytics` | Aggregated evaluation stats per flag/environment |
-
----
-
 ### Audit Logs (`/api/projects/:projectId/audit-logs`)
 
 | Method | Path | Description |
@@ -181,7 +173,6 @@ Flag types: `boolean`, `string`, `number`, `json`.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/v1/flags/evaluate` | API key | Evaluate all flags for a user context |
-| `POST` | `/v1/events` | API key | Ingest a batch of analytics events |
 
 **`POST /v1/flags/evaluate`** — send the environment API key as `Authorization: Bearer vex_...`
 
@@ -204,17 +195,6 @@ Flag types: `boolean`, `string`, `number`, `json`.
 }
 ```
 
-**`POST /v1/events`**
-
-```json
-{
-  "events": [
-    { "flagKey": "new-checkout", "result": true,  "context": { "userId": "u_42" } },
-    { "flagKey": "ui-theme",     "result": false, "context": { "userId": "u_42" } }
-  ]
-}
-```
-
 ---
 
 ## Rate Limits
@@ -226,7 +206,6 @@ Flag types: `boolean`, `string`, `number`, `json`.
 | Control plane writes | 50 / day per user |
 | Control plane reads | 200 / day per user |
 | `POST /v1/flags/evaluate` | `MAX_EVAL_PER_DAY` (default 100) / day per API key |
-| `POST /v1/events` | 50 / day per API key |
 
 ---
 
@@ -241,6 +220,7 @@ npm run test:unit         # Unit tests (services, strategies, engine)
 npm run test:integration  # Route integration tests (in-process test app)
 npm run test:security     # RBAC, org isolation, injection tests
 npm run test:rate-limit   # Token-bucket rate limit tests
+
 
 # Coverage report
 npm run test:coverage
@@ -288,7 +268,7 @@ npm run migration:generate -- src/migrations/<MigrationName>
 # 1. Start PostgreSQL
 docker compose up -d postgres
 
-# 2. Apply the initial schema migration (creates all 9 tables)
+# 2. Apply the initial schema migration (creates all 8 tables)
 cd apps/api
 npm run migration:run
 # Output: Applied migration: InitialSchema1744588800000
@@ -331,7 +311,7 @@ npm run migration:run
 
 ```
 apps/api/src/migrations/
-└── 1744588800000-InitialSchema.ts   ← baseline covering all 9 entities
+└── 1744588800000-InitialSchema.ts   ← baseline covering all 8 entities
     <timestamp>-<Name>.ts            ← future migrations added here
 ```
 

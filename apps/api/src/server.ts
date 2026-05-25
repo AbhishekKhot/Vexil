@@ -6,7 +6,6 @@ import { Environment } from "./entities/Environment";
 import { Flag } from "./entities/Flag";
 import { FlagEnvironmentConfig } from "./entities/FlagEnvironmentConfig";
 import { Segment } from "./entities/Segment";
-import { EvaluationEvent } from "./entities/EvaluationEvent";
 import { User } from "./entities/User";
 import { Organization } from "./entities/Organization";
 import { AuditLog } from "./entities/AuditLog";
@@ -26,7 +25,7 @@ const start = async () => {
         username: process.env.DB_USER || "postgres",
         password: process.env.DB_PASS || "postgres",
         database: process.env.DB_NAME || "vexil",
-        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, EvaluationEvent, User, Organization, AuditLog],
+        entities: [Project, Environment, Flag, FlagEnvironmentConfig, Segment, User, Organization, AuditLog],
         // Never auto-sync in any environment — use migrations instead.
         // run_start.sh runs `migration:run` before this process starts, so
         // migrationsRun: true here acts as a safety net for direct `node dist/server.js` invocations.

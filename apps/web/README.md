@@ -1,6 +1,6 @@
 # @vexil/web
 
-React 19 admin dashboard for the Vexil feature flag platform. Lets teams manage projects, environments, flags, strategies, segments, and view analytics/audit logs.
+React 19 admin dashboard for the Vexil feature flag platform. Lets teams manage projects, environments, flags, strategies, segments, and view audit logs.
 
 Built with: React 19 · React Router v7 · Vite 6 · Tailwind CSS 3.4 · TypeScript 5.6
 
@@ -92,11 +92,7 @@ You can also set a **Scheduled Change** — a future strategy config that auto-a
 
 Under the **Segments** tab, create reusable rule sets (e.g. "EU users", "premium plan"). Segments can be referenced when configuring attribute-based strategies.
 
-### 7. Analytics
-
-The **Analytics** tab shows evaluation counts and pass rates per flag and environment over time. Data is collected via the SDK's analytics buffer and flushed to the API every 30s or 1000 events.
-
-### 8. Audit Log
+### 7. Audit Log
 
 The **Audit Logs** tab is a paginated, immutable record of every create/update/delete action in the project, including who made the change and what the full payload was.
 
@@ -158,7 +154,6 @@ apps/web/src/
     ├── FlagsTab.tsx
     ├── EnvironmentsTab.tsx
     ├── SegmentsTab.tsx
-    ├── AnalyticsTab.tsx
     ├── AuditLogTab.tsx
     └── FlagConfigurePage.tsx  # Strategy builder
 ```

@@ -91,12 +91,6 @@ export const api = {
     deleteSegment: (projectId: string, segmentId: string) =>
         request<void>(`/api/projects/${projectId}/segments/${segmentId}`, { method: 'DELETE' }),
 
-    // Analytics
-    getStats: (projectId: string, params?: { environmentId?: string; flagKey?: string }) => {
-        const qs = new URLSearchParams(params as Record<string, string>).toString();
-        return request<unknown[]>(`/api/projects/${projectId}/stats${qs ? `?${qs}` : ''}`);
-    },
-
     // Audit Logs
     getAuditLogs: (projectId: string, params?: Record<string, string>) => {
         const qs = new URLSearchParams(params).toString();

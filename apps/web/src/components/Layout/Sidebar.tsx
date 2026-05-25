@@ -7,7 +7,6 @@ const navItems = [
   { to: '', label: 'Flags', end: true },
   { to: 'environments', label: 'Environments' },
   { to: 'segments', label: 'Segments' },
-  { to: 'analytics', label: 'Analytics' },
   { to: 'audit-logs', label: 'Audit Logs' },
 ];
 

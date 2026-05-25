@@ -6,7 +6,6 @@ import { Environment } from './entities/Environment';
 import { Flag } from './entities/Flag';
 import { FlagEnvironmentConfig } from './entities/FlagEnvironmentConfig';
 import { Segment } from './entities/Segment';
-import { EvaluationEvent } from './entities/EvaluationEvent';
 import { User } from './entities/User';
 import { Organization } from './entities/Organization';
 import { AuditLog } from './entities/AuditLog';
@@ -40,7 +39,6 @@ export const AppDataSource = new DataSource({
         Flag,
         FlagEnvironmentConfig,
         Segment,
-        EvaluationEvent,
         User,
         Organization,
         AuditLog,
