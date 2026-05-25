@@ -1,4 +1,3 @@
-// Unit tests: AbTestStrategy (U-ST-14..18)
 import { describe, it, expect } from "vitest";
 import { AbTestStrategy } from "../../../src/evaluation/strategies/AbTestStrategy";
 import { StrategyValidationError } from "../../../src/evaluation/EvaluationStrategy.interface";
@@ -26,13 +25,12 @@ describe("AbTestStrategy", () => {
             const r = s.evaluate({ userId: id });
             variants.add(r.variant as string);
         }
-        // With 20 diverse users, both variants should appear
         expect(variants.size).toBeGreaterThanOrEqual(2);
     });
 
     it("U-ST-16: missing identifier in context → falls back to first variant", () => {
         const s = new AbTestStrategy({ strategyType: "ab_test", variants: twoVariants, hashAttribute: "userId" }, "ab-flag");
-        const r = s.evaluate({ plan: "pro" }); // no userId
+        const r = s.evaluate({ plan: "pro" });
         expect(r.variant).toBe("control");
         expect(r.reason).toBe("MISSING_CONTEXT");
     });
@@ -53,7 +51,7 @@ describe("AbTestStrategy", () => {
                     strategyType: "ab_test",
                     variants: [
                         { key: "a", value: true, weight: 60 },
-                        { key: "b", value: false, weight: 60 }, // 120 total
+                        { key: "b", value: false, weight: 60 },
                     ],
                     hashAttribute: "userId",
                 },
@@ -63,8 +61,6 @@ describe("AbTestStrategy", () => {
     });
 
     it("U-ST-19: all users get a valid variant (covers full variant list, including last)", () => {
-        // Use a 3-variant config where the last variant has a non-trivial weight
-        // This exercises the fallback path for users hashing near bucket 100
         const threeVariants = [
             { key: "a", value: "A", weight: 33 },
             { key: "b", value: "B", weight: 33 },
@@ -83,13 +79,12 @@ describe("AbTestStrategy", () => {
             expect(["a", "b", "c"]).toContain(r.variant);
             seen.add(r.variant as string);
         }
-        // All 3 variants should be reachable
         expect(seen.size).toBe(3);
     });
 
     it("U-ST-20: empty identifier string → falls back to first variant (MISSING_CONTEXT)", () => {
         const s = new AbTestStrategy({ strategyType: "ab_test", variants: twoVariants, hashAttribute: "userId" }, "ab-flag");
-        const r = s.evaluate({ userId: "  " }); // whitespace-only
+        const r = s.evaluate({ userId: "  " });
         expect(r.variant).toBe("control");
         expect(r.reason).toBe("MISSING_CONTEXT");
     });

@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: ProjectService
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ProjectService } from "../../src/services/ProjectService";
 
@@ -20,8 +20,6 @@ describe("ProjectService", () => {
         projectRepo = makeProjectRepo();
         svc = new ProjectService(projectRepo as any);
     });
-
-    // --- createProject ---
 
     it("U-PROJ-01: createProject — valid name → saves and returns project", async () => {
         projectRepo.save.mockResolvedValue({ id: "p-1", name: "My Project", organizationId: "org-1" });
@@ -52,8 +50,6 @@ describe("ProjectService", () => {
         expect(projectRepo.create).toHaveBeenCalledWith(expect.objectContaining({ description: "A description" }));
     });
 
-    // --- listProjects ---
-
     it("U-PROJ-06: listProjects — returns projects for org, ordered DESC", async () => {
         projectRepo.find.mockResolvedValue([{ id: "p-2" }, { id: "p-1" }]);
 
@@ -65,8 +61,6 @@ describe("ProjectService", () => {
             order: { createdAt: "DESC" },
         });
     });
-
-    // --- getProject ---
 
     it("U-PROJ-07: getProject — with organizationId filter → applies both constraints", async () => {
         projectRepo.findOne.mockResolvedValue({ id: "p-1", organizationId: "org-1" });
@@ -92,8 +86,6 @@ describe("ProjectService", () => {
         projectRepo.findOne.mockResolvedValue(null);
         expect(await svc.getProject("missing", "org-1")).toBeNull();
     });
-
-    // --- deleteProject ---
 
     it("U-PROJ-10: deleteProject — affected > 0 → returns true", async () => {
         projectRepo.delete.mockResolvedValue({ affected: 1 });

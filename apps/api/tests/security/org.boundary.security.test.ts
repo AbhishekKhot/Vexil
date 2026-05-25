@@ -1,15 +1,12 @@
 import "reflect-metadata";
-// Security tests: Org boundary (SEC-O-01..10)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
 import { TEST_JWT_SECRET, TEST_ORG_ID, signToken } from "../helpers/buildTestApp";
 
-// User from Org A trying to access Org B's resources
 const ORG_A = TEST_ORG_ID;
 const ORG_B = "org-b-different";
 
-// Service mocks — all return null/empty when org doesn't match
 const services = {
     getProject: vi.fn(),
     listProjects: vi.fn(),
@@ -38,7 +35,6 @@ async function buildApp() {
 
     app.addHook("onRequest", (app as any).authenticate);
 
-    // Each route passes organizationId to service which returns null on mismatch → 404
     app.get("/api/projects/:id", {}, async (req: any, reply) => {
         const p = await services.getProject(req.params.id, req.user.organizationId);
         return p ? reply.code(200).send(p) : reply.code(404).send({ error: "Not found" });
@@ -98,7 +94,6 @@ async function buildApp() {
     return app;
 }
 
-// Token for user in Org A
 const tokenOrgA = () => signToken({ organizationId: ORG_A });
 
 describe("Security: Org Boundary", () => {
@@ -106,7 +101,6 @@ describe("Security: Org Boundary", () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        // By default, getProject returns null when org doesn't match
         services.getProject.mockResolvedValue(null);
         services.getLogById.mockResolvedValue(null);
         services.getFlag.mockResolvedValue(null);

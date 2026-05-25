@@ -1,4 +1,3 @@
-// Integration tests: Auth routes (I-A-01..14)
 import "reflect-metadata";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
@@ -18,7 +17,6 @@ async function buildApp(authService: ReturnType<typeof buildAuthServiceMock>) {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
     const app = Fastify({ logger: false });
 
-    // Stub authenticate decorator
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
         if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });

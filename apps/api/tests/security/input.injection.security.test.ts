@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Security tests: Input & Injection
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -17,7 +16,7 @@ async function buildApp() {
     process.env.WEB_URL = "http://localhost:5173";
     const app = Fastify({
         logger: false,
-        bodyLimit: 512 * 1024, // 512 KB — same as production
+        bodyLimit: 512 * 1024,
     });
 
     app.decorate("authenticate", async (req: any, reply: any) => {
@@ -29,17 +28,14 @@ async function buildApp() {
         } catch { return reply.code(401).send({ error: "Unauthorized" }); }
     });
 
-    // POST flag evaluate — used for body-limit check
     app.post("/v1/flags/evaluate", {}, async (_req, reply) => reply.code(200).send({ flags: {} }));
 
-    // GET audit logs with limit param
     app.get("/api/projects/:projectId/audit-logs", { preHandler: [(app as any).authenticate] }, async (req: any, reply) => {
         const limit = Math.min(Math.max(1, parseInt((req.query as any).limit || "20", 10)), 100);
         const result = await mockServices.getLogs(req.params.projectId, { limit });
         return reply.code(200).send(result);
     });
 
-    // POST register
     app.post("/api/auth/register", {}, async (req: any, reply) => {
         const { email, password, name, orgName } = (req.body ?? {}) as any;
         if (!email || !password || !name || !orgName) return reply.code(400).send({ error: "Missing fields" });
@@ -48,11 +44,10 @@ async function buildApp() {
         } catch (err: any) { return reply.code(400).send({ error: err.message }); }
     });
 
-    // PUT flag config — prototype pollution check
     app.put("/api/projects/:projectId/flags/:flagId/config", { preHandler: [(app as any).authenticate] }, async (req: any, reply) => {
         const body = req.body as any;
-        // Simulate setting the config (checks for prototype pollution)
-        const cfg = JSON.parse(JSON.stringify(body)); // safe copy
+
+        const cfg = JSON.parse(JSON.stringify(body));
         return reply.code(200).send({ saved: true });
     });
 
@@ -72,7 +67,7 @@ describe("Security: Input & Injection", () => {
     afterEach(async () => { await app.close(); });
 
     it("SEC-I-01: Request body > 512KB → 413 (Fastify bodyLimit)", async () => {
-        const bigBody = "x".repeat(600 * 1024); // 600 KB > 512 KB limit
+        const bigBody = "x".repeat(600 * 1024);
         const res = await app.inject({
             method: "POST", url: "/v1/flags/evaluate",
             headers: { "content-type": "application/json" },
@@ -91,8 +86,7 @@ describe("Security: Input & Injection", () => {
     });
 
     it("SEC-I-05: Flag key with SQL injection chars → 400 (createFlag rejects)", async () => {
-        // The FlagService should reject keys like "flag'; DROP TABLE flags; --"
-        // We test the validation path via service throwing
+
         const app2 = Fastify({ logger: false });
         app2.post("/flag", {}, async (req: any, reply) => {
             const key = (req.body as any) ?.key ?? "";
@@ -114,7 +108,6 @@ describe("Security: Input & Injection", () => {
             payload: { "__proto__": { "polluted": true }, isEnabled: true },
         });
 
-        // Prototype should NOT be polluted
         expect((Object.prototype as any).polluted).toBeUndefined();
     });
 
@@ -128,7 +121,7 @@ describe("Security: Input & Injection", () => {
     });
 
     it("SEC-I-08: GET /audit-logs from disallowed CORS origin → CORS block", async () => {
-        // Build an app with CORS configured
+
         const corsApp = Fastify({ logger: false });
         await corsApp.register(await import("@fastify/cors").then(m => m.default), {
             origin: (origin: any, cb: any) => {
@@ -139,12 +132,11 @@ describe("Security: Input & Injection", () => {
         corsApp.get("/test", async (_req, reply) => reply.send({ ok: true }));
         await corsApp.ready();
 
-        // Request from disallowed origin
         const res = await corsApp.inject({
             method: "GET", url: "/test",
             headers: { origin: "http://evil.com" },
         });
-        // The important assertion is that the CORS header is NOT set for the disallowed origin
+
         expect(res.headers["access-control-allow-origin"]).not.toBe("http://evil.com");
         await corsApp.close();
     });

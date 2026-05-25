@@ -1,4 +1,3 @@
-// Unit tests: EvaluationEngine (U-EE-01..05)
 import { describe, it, expect, vi } from "vitest";
 import { EvaluationEngine } from "../../src/evaluation/EvaluationEngine";
 
@@ -33,14 +32,14 @@ describe("EvaluationEngine", () => {
     });
 
     it("U-EE-03: one flag throws during evaluation → ERROR reason, other flags still evaluated", async () => {
-        // Suppress the expected console.error that EvaluationEngine emits for fault-isolated errors
+
         const spy = vi.spyOn(console, "error").mockImplementation(() => { });
         const engine = new EvaluationEngine(makeConfigRepo() as any);
 
         const badConfig = makeConfig({
             flag: { key: "bad-flag", type: "release" },
             strategyType: "rollout",
-            // missing hashAttribute → will throw StrategyValidationError
+
             strategyConfig: { percentage: 50 },
         });
 
@@ -56,7 +55,6 @@ describe("EvaluationEngine", () => {
         expect(result.flags["good-flag"]).toBeDefined();
         expect(result.flags["good-flag"].reason).not.toBe("ERROR");
 
-        // Confirm the engine did log the error (production observability), then restore
         expect(spy).toHaveBeenCalledWith(expect.stringContaining("[EvaluationEngine]"));
         spy.mockRestore();
     });
@@ -67,14 +65,13 @@ describe("EvaluationEngine", () => {
             strategyType: "totally_unknown_strategy",
         });
 
-        // Should not throw — falls back to boolean
         const result = await engine.evaluate([config], {});
         expect(result.flags["test-flag"]).toBeDefined();
     });
 
     it("U-EE-06: prerequisite evaluator returns null (prereq config not found) → PREREQUISITE_UNMET", async () => {
         const configRepo = makeConfigRepo();
-        // Repo returns null — the prerequisite flag doesn't exist in this environment
+
         configRepo.findOne.mockResolvedValue(null);
         const engine = new EvaluationEngine(configRepo as any);
 
@@ -103,7 +100,6 @@ describe("EvaluationEngine", () => {
             strategyConfig: { flagKey: "flag-other", expectedValue: true },
         });
 
-        // Pass depth=3 (= MAX_PREREQUISITE_DEPTH) — engine passes undefined as evaluator
         const result = await engine.evaluate([config], {}, 3);
 
         expect(result.flags["flag-deep"].reason).toBe("ERROR");
@@ -111,10 +107,9 @@ describe("EvaluationEngine", () => {
     });
 
     it("U-EE-05: prerequisite at depth 3 evaluated; depth 4 returns ERROR (depth limit)", async () => {
-        // Build a chain: flag-a depends on flag-b (depth 0 → 1 → 2 → depth 3 limit)
+
         const configRepo = makeConfigRepo();
 
-        // flag-b config (the prerequisite)
         const prereqConfig = makeConfig({
             flag: { key: "flag-b", type: "release" },
             isEnabled: true,
@@ -133,7 +128,6 @@ describe("EvaluationEngine", () => {
 
         const result = await engine.evaluate([mainConfig], {});
 
-        // Prerequisite met (flag-b is ENABLED = true, expected true)
         expect(result.flags["flag-a"].reason).toBe("PREREQUISITE_MET");
         expect(result.flags["flag-a"].value).toBe(true);
     });

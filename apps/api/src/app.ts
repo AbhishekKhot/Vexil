@@ -15,8 +15,6 @@ import { authMiddleware } from "./middleware/authMiddleware";
 import { registerOpenApi } from "./openapi";
 import { getRedisClient } from "./utils/redis";
 
-// Extend Fastify's type system so orm and redis are available on fastify.orm / fastify.redis
-// throughout the codebase without casting.
 declare module 'fastify' {
     interface FastifyInstance {
         orm: DataSource;
@@ -24,26 +22,17 @@ declare module 'fastify' {
     }
 }
 
-// ── Rate limit windows (all values in milliseconds) ──────────────────────────
-// Kept very tight — this is a portfolio deployment, not a high-traffic service.
-// Raise these values if you deploy for real users.
 const LIMITS = {
-    // Auth: prevent brute-force and org-spam
     register: { max: 5, timeWindow: 24 * 60 * 60 * 1000 }, // 5/day per IP
     login: { max: 10, timeWindow: 15 * 60 * 1000 }, // 10/15min per IP
     authGeneral: { max: 30, timeWindow: 60 * 60 * 1000 }, // 30/hr per IP (GET /me etc.)
-
-    // Control plane: dashboard CRUD operations
     controlWrite: { max: 50, timeWindow: 24 * 60 * 60 * 1000 }, // 50 writes/day per user
     controlRead: { max: 200, timeWindow: 24 * 60 * 60 * 1000 }, // 200 reads/day per user
-
     // Data plane: SDK evaluation — SDK polls every 30s, so 50/day ≈ 25min of polling
-    // Raise MAX_EVAL_PER_DAY env var if needed for demos without redeploying.
     evaluate: { max: parseInt(process.env.MAX_EVAL_PER_DAY || "100", 10), timeWindow: 24 * 60 * 60 * 1000 },
 } as const;
 
 /**
- * Builds and configures the Fastify app.
  * Routes are split into two planes:
  *   - Control plane (/api/*): JWT-protected, used by the management UI.
  *   - Data plane (/v1/*): API-key-protected, used by SDK clients at evaluation time.
@@ -59,8 +48,6 @@ export async function buildApp(dataSource: DataSource) {
         }
     });
 
-    // ── CORS ─────────────────────────────────────────────────────────────────
-    // In production, restrict to the deployed web URL. In dev, allow localhost:5173.
     const allowedOrigin = process.env.WEB_URL || "http://localhost:5173";
     await fastify.register(cors, {
         origin: (origin, cb) => {
@@ -72,7 +59,6 @@ export async function buildApp(dataSource: DataSource) {
         credentials: true,
     });
 
-    // ── Rate limiting (uses Redis store when available, falls back to in-memory) ──
     await fastify.register(rateLimit, {
         redis: getRedisClient(),
         keyGenerator: (req) => {
@@ -146,5 +132,4 @@ export async function buildApp(dataSource: DataSource) {
     return fastify;
 }
 
-// Export limits so route files can reference them without duplication.
 export { LIMITS };

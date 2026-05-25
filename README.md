@@ -1,340 +1,147 @@
 # Vexil
 
-> Self-hosted feature flag platform — deterministic rollouts, multiple targeting strategies, and low-latency evaluation.
+**A self-hosted feature flag service.** Turn features on or off for selected users without redeploying your app.
 
 ---
 
-## Repository Layout
+## What is a feature flag?
 
-```
-vexil/
-├── apps/
-│   ├── api/          # Fastify backend — control + data plane  →  apps/api/README.md
-│   └── web/          # React admin dashboard                   →  apps/web/README.md
-├── packages/
-│   ├── sdk-js/       # @vexil/sdk-js — JS/TS SDK (npm package) →  packages/sdk-js/README.md
-│   └── types/        # @vexil/types — shared TypeScript types
-└── docker-compose.yml
-```
+A feature flag is a remote switch for code you've already shipped. Instead of hard-coding `if (newCheckout) { ... }`, your app asks Vexil _"is `new-checkout` on for this user?"_ Vexil decides based on rules you set in a dashboard — for example: 10% of all users, only users in the US on the Pro plan, or a 50/50 A/B test.
 
-**Per-service setup guides live in each service's own README.** This document covers the overall system architecture, data model, and evaluation design.
+You change the rule in the dashboard; your app picks it up within ~60 seconds. No redeploy.
 
 ---
 
-## Service Architecture
+## How Vexil works
 
 ```mermaid
-graph TB
-    classDef client fill:#4f46e5,stroke:#3730a3,color:#fff
-    classDef sdk fill:#0891b2,stroke:#0e7490,color:#fff
-    classDef plane fill:#1e293b,stroke:#334155,color:#e2e8f0
-    classDef infra fill:#166534,stroke:#14532d,color:#fff
+flowchart LR
+    Team([You / Team]) --> Dash[Dashboard<br/>:5173]
+    Dash -->|"create &amp; configure flags"| API[Vexil API<br/>:3000]
+    API --> DB[(Postgres<br/>+ Redis cache)]
 
-    subgraph clients["Client Applications"]
-        APP1["Web App"]:::client
-        APP2["Node.js Service"]:::client
-    end
-
-    subgraph sdk["@vexil/sdk-js"]
-        SDKJS["VexilClient\npolling"]:::sdk
-    end
-
-    subgraph control["Control Plane  (apps/web + /api/*)"]
-        DASH["React Dashboard\n:5173"]:::plane
-        API["Fastify API\n/api/* — JWT auth\n:3000"]:::plane
-        SCHED["SchedulerService\n60s poll → scheduled flag changes"]:::plane
-    end
-
-    subgraph data["Data Plane  (/v1/*)"]
-        EVAL["POST /v1/flags/evaluate\nAPI-key auth"]:::plane
-    end
-
-    subgraph infra["Infrastructure"]
-        PG[("PostgreSQL 16\nsource of truth")]:::infra
-        REDIS[("Redis 7\n30s config TTL · 5m env TTL")]:::infra
-    end
-
-    APP1 & APP2 --> SDKJS
-    SDKJS --> EVAL
-    DASH --> API
-    API --> PG
-    API --> REDIS
-    EVAL --> REDIS
-    EVAL --> PG
-    SCHED --> PG
-    SCHED --> REDIS
+    YourApp[Your App] -->|"isEnabled('checkout')"| SDK[@vexil/sdk-js]
+    SDK -->|"POST /v1/flags/evaluate<br/>every 30s"| API
 ```
 
-### Two-plane design
+Three moving parts:
 
-| Plane | Prefix | Auth | Purpose |
-|-------|--------|------|---------|
-| Control | `/api/*` | JWT (8h) | Dashboard CRUD — projects, flags, environments |
-| Data | `/v1/*` | API key (`vex_…`) | SDK flag evaluation |
-
----
-
-## Flag Evaluation Flow
-
-```mermaid
-sequenceDiagram
-    autonumber
-    participant App as Client App
-    participant SDK as VexilClient
-    participant API as /v1/flags/evaluate
-    participant Cache as Redis
-    participant DB as PostgreSQL
-
-    App->>SDK: init({ userId, country, tier })
-    SDK->>API: POST /v1/flags/evaluate  Bearer vex_...
-    API->>Cache: Lookup env by API key (TTL 5m)
-    alt cache miss
-        Cache-->>API: miss
-        API->>DB: SELECT environment WHERE api_key = ?
-        API->>Cache: SET env (TTL 5m)
-    end
-    API->>Cache: Lookup flag configs (TTL 30s)
-    alt cache miss
-        Cache-->>API: miss
-        API->>DB: SELECT flag_environment_configs
-        API->>Cache: SET configs (TTL 30s)
-    end
-    API->>API: EvaluationEngine.evaluate(configs, context)
-    Note over API: Per flag: strategy evaluated, reason code returned
-    API-->>SDK: { flags: { key: { value, type, variant, reason } } }
-    SDK->>SDK: in-memory cache + polling timer (default 30s)
-    SDK-->>App: FlagMap — zero-latency reads
-```
+1. **Dashboard** — where you and your team create flags and pick rules.
+2. **API** — stores everything in Postgres, answers evaluation requests, caches hot reads in Redis.
+3. **SDK** — drops into your app, asks the API once at startup + every 30 seconds, serves answers from memory.
 
 ---
 
-## Evaluation Strategies
+## Run it (one command)
 
-Eight strategies are evaluated in strict priority order per flag:
-
-```mermaid
-flowchart TD
-    classDef decision fill:#1e40af,stroke:#1e3a8a,color:#fff
-    classDef terminal fill:#166534,stroke:#14532d,color:#fff
-    classDef terminalFail fill:#991b1b,stroke:#7f1d1d,color:#fff
-    classDef strategy fill:#0f172a,stroke:#334155,color:#e2e8f0
-
-    START([Evaluate flag]) --> ENABLED{Flag enabled?}:::decision
-    ENABLED -- No --> DEFAULT([default value]):::terminalFail
-    ENABLED -- Yes --> STRATEGY{Strategy type}:::decision
-
-    STRATEGY --> BOOL["Boolean — fixed on/off value"]:::strategy
-    STRATEGY --> ROLLOUT["Rollout — djb2(userId+flagKey) % 100"]:::strategy
-    STRATEGY --> USER["User Targeting — userId in whitelist"]:::strategy
-    STRATEGY --> ATTR["Attribute Matching — AND rule evaluation"]:::strategy
-    STRATEGY --> TARGETED["Targeted Rollout — rules AND rollout bucket"]:::strategy
-    STRATEGY --> AB["A/B Test — weighted variant assignment"]:::strategy
-    STRATEGY --> TIME["Time Window — now between start/end UTC"]:::strategy
-    STRATEGY --> PREREQ["Prerequisite — other flag == expected value (max depth 3)"]:::strategy
-```
-
-| Strategy | Key config fields |
-|----------|-------------------|
-| `boolean` | `value: boolean` |
-| `rollout` | `percentage: 0–100`, `hashAttribute` |
-| `user_targeting` | `userIds: string[]`, `hashAttribute`, `fallthrough` |
-| `attribute_matching` | `rules: TargetingRule[]` |
-| `targeted_rollout` | `percentage`, `hashAttribute`, `rules` |
-| `ab_test` | `variants: { key, value, weight }[]` (sum to 100), `hashAttribute` |
-| `time_window` | `startDate`, `endDate` (ISO 8601), `timezone?` |
-| `prerequisite` | `flagKey`, `expectedValue` |
-
-> `hashAttribute` (default `"userId"`) is the context field used for deterministic bucketing. Rollout results are stable per user per flag.
-
----
-
-## Data Model
-
-```mermaid
-erDiagram
-    ORGANIZATION {
-        uuid id PK
-        string name
-    }
-    USER {
-        uuid id PK
-        string email
-        string password_hash
-        enum role "ADMIN | MEMBER | VIEWER"
-        uuid org_id FK
-    }
-    PROJECT {
-        uuid id PK
-        string name
-        uuid org_id FK
-    }
-    ENVIRONMENT {
-        uuid id PK
-        string name
-        string api_key "vex_..."
-        uuid project_id FK
-    }
-    FLAG {
-        uuid id PK
-        string key
-        string name
-        enum type "boolean | string | number | json"
-        uuid project_id FK
-    }
-    FLAG_ENVIRONMENT_CONFIG {
-        uuid id PK
-        boolean is_enabled
-        enum strategy_type
-        jsonb strategy_config
-        timestamp scheduled_change_at
-        jsonb scheduled_change_config
-        uuid flag_id FK
-        uuid environment_id FK
-    }
-    SEGMENT {
-        uuid id PK
-        string name
-        jsonb conditions
-        uuid project_id FK
-    }
-    AUDIT_LOG {
-        uuid id PK
-        string action
-        jsonb payload
-        timestamp created_at
-        uuid project_id FK
-        uuid user_id FK
-    }
-
-    ORGANIZATION ||--o{ USER : has
-    ORGANIZATION ||--o{ PROJECT : owns
-    PROJECT ||--o{ ENVIRONMENT : has
-    PROJECT ||--o{ FLAG : defines
-    PROJECT ||--o{ SEGMENT : defines
-    PROJECT ||--o{ AUDIT_LOG : tracks
-    FLAG ||--o{ FLAG_ENVIRONMENT_CONFIG : "configured per env"
-    ENVIRONMENT ||--o{ FLAG_ENVIRONMENT_CONFIG : "stores configs"
-```
-
----
-
-## Caching Strategy
-
-| Cache key | TTL | Invalidated on |
-|-----------|-----|----------------|
-| `env_apikey:{apiKey}` | 5 min | Environment update |
-| `env_configs:{environmentId}` | 30 s | Flag config save |
-| `eval_bucket:{apiKey}` | rolling | Token-bucket rate limit |
-
----
-
-## Docker Compose
-
-Runs PostgreSQL, Redis, the API, and the web dashboard together. The API container automatically runs database migrations before accepting traffic.
+You need Docker. Then from the repo root:
 
 ```bash
-# 1. Create your env file and set JWT_SECRET
 cp .env.example .env
-# Edit .env — at minimum, change JWT_SECRET:
-#   JWT_SECRET=$(openssl rand -hex 32)
-
-# 2. Build images and start everything
+# Open .env and set JWT_SECRET. Generate one with:
+#   openssl rand -hex 32
 docker compose up --build
 ```
 
-**What happens on first run:**
+This starts Postgres, Redis, the API, and the dashboard. Database migrations run automatically.
+
+| Service | URL |
+|---|---|
+| Dashboard | http://localhost:5173 |
+| API | http://localhost:3000 |
+| API docs (Swagger) | http://localhost:3000/docs |
+
+**First-time walkthrough:**
+
+1. Open the dashboard → register an account (you become ADMIN).
+2. Create a **project**, then add an **environment** (e.g. `development`). It generates an API key starting with `vex_…`.
+3. Create a **flag**, click **Configure**, pick a strategy.
+4. Wire the SDK into your app:
+
+```ts
+import { VexilClient } from "@vexil/sdk-js";
+
+const client = new VexilClient({
+  apiKey: "vex_...",                  // from the Environments tab
+  baseUrl: "http://localhost:3000",
+});
+await client.init({ userId: "user-123", country: "US" });
+
+if (client.isEnabled("new-checkout")) showNewCheckout();
+```
+
+Prefer running natively? See [apps/api/README.md](apps/api/README.md) and [apps/web/README.md](apps/web/README.md).
+
+---
+
+## Repository layout
 
 ```
-postgres  → starts, waits until pg_isready
-redis     → starts, waits until redis-cli ping
-api       → waits for postgres + redis to be healthy
-            runs run_start.sh:
-              [startup] Running database migrations...
-              [startup] Applied migration: InitialSchema1744588800000
-              [startup] Migrations complete.
-              [startup] Starting Vexil API server...
-web       → waits for api /health to return 200
-            serves the React dashboard via nginx
-```
-
-**Subsequent runs** (images already built):
-
-```bash
-docker compose up
-# Migrations are idempotent — "No pending migrations" on a current schema
-```
-
-**Ports:**
-
-| Service | Host URL |
-|---------|----------|
-| PostgreSQL | `localhost:5432` |
-| Redis | `localhost:6379` |
-| API | `http://localhost:3000` — Swagger: `/docs` |
-| Web | `http://localhost:5173` |
-
-**Useful commands:**
-
-```bash
-# Rebuild only the api image after code changes
-docker compose up --build api
-
-# View api logs
-docker compose logs -f api
-
-# Stop everything (keeps volumes)
-docker compose down
-
-# Stop and delete all data (volumes)
-docker compose down -v
-
-# Run a one-off migration manually inside the running container
-docker compose exec api sh -c "node -e \"const {AppDataSource}=require('./dist/data-source');AppDataSource.initialize().then(ds=>ds.runMigrations()).then(()=>process.exit(0))\""
+apps/
+  api/        Fastify backend (Postgres + Redis)   → apps/api/README.md
+  web/        React dashboard                       → apps/web/README.md
+packages/
+  sdk-js/     JS / TS SDK (npm package)             → packages/sdk-js/README.md
+  types/      shared TypeScript types
 ```
 
 ---
 
-## Quick Start (Local Dev)
+## Targeting strategies
 
-> Full setup instructions are in each service's README. This is the three-command path.
+Each flag picks **one** strategy per environment:
 
-```bash
-# 1. Install all workspaces
-npm install
+| Strategy | When to use |
+|---|---|
+| **Boolean** | Simple on/off for everyone |
+| **Rollout** | Gradually enable for X% of users — same user always lands in the same bucket |
+| **User targeting** | Allowlist specific user IDs |
+| **Attribute matching** | "Only users where `country = US` and `plan = pro`" |
+| **Targeted rollout** | Attribute rules **and** a percentage |
+| **A/B test** | Split users into named variants by weight |
+| **Time window** | Auto-on between two UTC timestamps |
+| **Prerequisite** | Only on if another flag is also on (max 3 levels deep) |
 
-# 2. Start PostgreSQL + Redis only
-docker compose up -d postgres redis
-
-# 3. Copy env, run migrations, start both services
-cp apps/api/.env.example apps/api/.env
-cd apps/api && npm run migration:run && cd ../..
-npm run dev:api   # http://localhost:3000  |  Swagger: http://localhost:3000/docs
-npm run dev:web   # http://localhost:5173
-```
-
-Register an account → create a project → add environments → create flags → configure strategies.
+Rollouts are deterministic: `djb2(userId + flagKey) % 100` < percentage. The same user gets the same answer for the same flag every time, so users don't "flicker" in and out.
 
 ---
 
-## Database Migrations
+## Data model
 
-Schema changes are managed with TypeORM migrations. `synchronize: true` is disabled — the schema is never auto-modified at runtime.
-
-```bash
-# Apply all pending migrations
-cd apps/api && npm run migration:run
-
-# Undo last migration
-cd apps/api && npm run migration:revert
-
-# Show migration status
-cd apps/api && npm run migration:show
-
-# Generate a new migration after editing an entity
-cd apps/api && npm run migration:generate -- src/migrations/MyChange
 ```
-
-See [apps/api/README.md](apps/api/README.md#database-migrations) for the full migration guide including the upgrade path from `synchronize: true`.
+Organization
+ ├── User                       (ADMIN / MEMBER / VIEWER)
+ └── Project
+      ├── Environment           (each has its own vex_… API key)
+      ├── Flag
+      │    └── FlagEnvConfig    (the strategy — one row per env)
+      ├── Segment               (reusable rule set)
+      └── AuditLog              (who changed what, when)
+```
 
 ---
 
+## Why it stays fast
+
+| Layer | Storage | TTL |
+|---|---|---|
+| API → environment by API key | Redis | 5 min |
+| API → flag configs per env | Redis | 30 s (cleared on save) |
+| SDK → flag values | in-memory | re-polls every 30 s |
+
+End-to-end propagation of a dashboard change: under ~60 s. Per-request evaluation is in-process and sub-millisecond once configs are cached.
+
+---
+
+## Two API planes
+
+| Plane | URL prefix | Auth | Who uses it |
+|---|---|---|---|
+| Control | `/api/*` | JWT (8h) | Dashboard |
+| Data | `/v1/*` | API key (`vex_…`) | SDKs / your app |
+
+Per-service details:
+
+- **API** — endpoints, env vars, tests, migrations → [apps/api/README.md](apps/api/README.md)
+- **Dashboard** — usage walkthrough, roles → [apps/web/README.md](apps/web/README.md)
+- **SDK** — install, methods, reason codes → [packages/sdk-js/README.md](packages/sdk-js/README.md)

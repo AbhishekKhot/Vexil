@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: SegmentService
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SegmentService } from "../../src/services/SegmentService";
 
@@ -20,8 +20,6 @@ describe("SegmentService", () => {
         segmentRepo = makeSegmentRepo();
         svc = new SegmentService(segmentRepo as any);
     });
-
-    // --- createSegment ---
 
     it("U-SEG-01: createSegment — valid inputs → saves and returns segment", async () => {
         const project = { id: "p-1" } as any;
@@ -56,16 +54,12 @@ describe("SegmentService", () => {
         expect(segmentRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: "My Segment" }));
     });
 
-    // --- listSegments ---
-
     it("U-SEG-07: listSegments — returns array for projectId", async () => {
         segmentRepo.find.mockResolvedValue([{ id: "s-1" }, { id: "s-2" }]);
         const result = await svc.listSegments("p-1");
         expect(result).toHaveLength(2);
         expect(segmentRepo.find).toHaveBeenCalledWith({ where: { project: { id: "p-1" } } });
     });
-
-    // --- getSegment ---
 
     it("U-SEG-08: getSegment — existing id → returns segment with project relation", async () => {
         segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: { id: "p-1" } });
@@ -78,8 +72,6 @@ describe("SegmentService", () => {
         segmentRepo.findOne.mockResolvedValue(null);
         expect(await svc.getSegment("missing")).toBeNull();
     });
-
-    // --- updateSegment ---
 
     it("U-SEG-10: updateSegment — updates name, description, and rules", async () => {
         const seg = { id: "s-1", name: "Old Name", description: "old", rules: {}, project: { id: "p-1" } };
@@ -108,8 +100,6 @@ describe("SegmentService", () => {
         segmentRepo.findOne.mockResolvedValue({ id: "s-1", project: {} });
         await expect(svc.updateSegment("s-1", { rules: "bad" })).rejects.toThrow("Invalid rules");
     });
-
-    // --- deleteSegment ---
 
     it("U-SEG-14: deleteSegment — affected > 0 → returns true", async () => {
         segmentRepo.delete.mockResolvedValue({ affected: 1 });

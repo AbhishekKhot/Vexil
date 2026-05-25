@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Integration tests: Environment routes (I-E-01..10)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -81,7 +80,7 @@ describe("Integration: Environment Routes", () => {
     });
 
     it("I-E-03: POST — projectId belongs to different org → 404", async () => {
-        mockProjectService.getProject.mockResolvedValue(null); // org mismatch
+        mockProjectService.getProject.mockResolvedValue(null);
         const res = await app.inject({ method: "POST", url: "/api/projects/p-other/environments", headers: { authorization: `Bearer ${signToken()}` }, payload: { name: "production" } });
         expect(res.statusCode).toBe(404);
     });

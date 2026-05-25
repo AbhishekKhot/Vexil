@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Unit tests: EnvironmentService
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EnvironmentService } from "../../src/services/EnvironmentService";
 
@@ -26,8 +25,6 @@ describe("EnvironmentService", () => {
         svc = new EnvironmentService(envRepo as any, redis as any);
     });
 
-    // --- createEnvironment ---
-
     it("U-ENV-01: createEnvironment — valid name → saves and returns env with vex_ apiKey", async () => {
         const project = { id: "p-1" } as any;
         envRepo.save.mockResolvedValue({ id: "e-1", name: "production", apiKey: "vex_abc123" });
@@ -35,7 +32,7 @@ describe("EnvironmentService", () => {
         const result = await svc.createEnvironment(project, "production");
 
         expect(envRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: "production" }));
-        // apiKey should start with vex_
+
         const createCall = envRepo.create.mock.calls[0][0];
         expect(createCall.apiKey).toMatch(/^vex_/);
         expect(envRepo.save).toHaveBeenCalledTimes(1);
@@ -57,16 +54,12 @@ describe("EnvironmentService", () => {
         expect(envRepo.create).toHaveBeenCalledWith(expect.objectContaining({ name: "staging" }));
     });
 
-    // --- listEnvironments ---
-
     it("U-ENV-05: listEnvironments — returns array from repo", async () => {
         envRepo.find.mockResolvedValue([{ id: "e-1" }, { id: "e-2" }]);
         const result = await svc.listEnvironments("p-1");
         expect(result).toHaveLength(2);
         expect(envRepo.find).toHaveBeenCalledWith({ where: { project: { id: "p-1" } } });
     });
-
-    // --- getEnvironment ---
 
     it("U-ENV-06: getEnvironment — existing id → returns env with project relation", async () => {
         envRepo.findOne.mockResolvedValue({ id: "e-1", project: { id: "p-1" } });
@@ -80,8 +73,6 @@ describe("EnvironmentService", () => {
         const result = await svc.getEnvironment("missing");
         expect(result).toBeNull();
     });
-
-    // --- deleteEnvironment ---
 
     it("U-ENV-08: deleteEnvironment — existing env → deletes and busts Redis cache keys", async () => {
         envRepo.findOne.mockResolvedValue({ id: "e-1", apiKey: "vex_oldkey", project: { id: "p-1" } });
@@ -111,8 +102,6 @@ describe("EnvironmentService", () => {
 
         expect(result).toBe(false);
     });
-
-    // --- rotateApiKey ---
 
     it("U-ENV-11: rotateApiKey — existing env → saves new vex_ key, busts old apiKey cache", async () => {
         const oldEnv = { id: "e-1", apiKey: "vex_oldkey", project: { id: "p-1" } };

@@ -18,7 +18,6 @@ export class AuditLogService {
 
     async getLogs(projectId: string, query: { page?: number; limit?: number; entityType?: string; action?: string } = {}) {
         const page = query.page || 1;
-        // H8: Cap limit to prevent unbounded DB queries.
         const limit = Math.min(query.limit || 20, 100);
         const qb = this.auditLogRepo.createQueryBuilder("log")
             .where("log.metadata ->> 'projectId' = :projectId", { projectId });
@@ -30,10 +29,8 @@ export class AuditLogService {
     }
 
     async getLogById(id: string, projectId: string): Promise<AuditLog | null> {
-        // H6: Verify the log belongs to the requested project to prevent cross-org data leakage.
         const log = await this.auditLogRepo.findOne({ where: { id } });
         if (!log) return null;
-        // Logs store projectId in metadata — verify it matches the URL param.
         if ((log.metadata as any) ?.projectId !== projectId) return null;
         return log;
     }

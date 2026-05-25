@@ -1,10 +1,3 @@
-/**
- * L-02: Auth spike — 50 concurrent logins
- * Pass criteria: p99 < 500ms, no 5xx responses
- *
- * Run: k6 run tests/load/L-02-auth-spike.js
- * Requires: TEST_EMAIL, TEST_PASSWORD env vars (a valid user must exist)
- */
 import http from "k6/http";
 import { sleep, check } from "k6";
 import { Trend, Counter } from "k6/metrics";
@@ -45,5 +38,5 @@ export default function () {
     console.error(`VU ${__VU}: 5xx on login — ${res.status}: ${res.body}`);
   }
 
-  sleep(0.1); // Small pause between requests within the burst
+  sleep(0.1);
 }

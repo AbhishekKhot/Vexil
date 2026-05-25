@@ -1,4 +1,3 @@
-// Integration tests: Project routes (I-P-01..10)
 import "reflect-metadata";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";

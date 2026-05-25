@@ -1,4 +1,3 @@
-// Unit tests: extractApiKey utility (EK-1..6)
 import { describe, it, expect } from "vitest";
 import { extractApiKey } from "../../src/utils/extractApiKey";
 

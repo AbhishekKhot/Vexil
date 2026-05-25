@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Security tests: Auth & JWT attacks (SEC-A-01..08)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -16,7 +15,6 @@ async function buildApp() {
     process.env.JWT_SECRET = TEST_JWT_SECRET;
     const app = Fastify({ logger: false });
 
-    // Authenticate decorator — identical to production logic
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
         if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
@@ -26,7 +24,6 @@ async function buildApp() {
         } catch { return reply.code(401).send({ error: "Unauthorized" }); }
     });
 
-    // Protected endpoint to test against
     app.get("/api/projects", { preHandler: [(app as any).authenticate] }, async (req: any, reply) => {
         return reply.send([]);
     });
@@ -82,7 +79,7 @@ describe("Security: Auth & JWT", () => {
 
     it("SEC-A-03: JWT with tampered payload → 401 (signature invalid)", async () => {
         const token = signToken({ organizationId: "org-legit" });
-        // Tamper: decode + modify + re-encode without signing
+
         const [header, , signature] = token.split(".");
         const tamperedPayload = Buffer.from(JSON.stringify({ userId: "u1", organizationId: "org-evil", role: UserRole.ADMIN, email: "x@y.com" })).toString("base64url");
         const tamperedToken = `${header}.${tamperedPayload}.${signature}`;
@@ -97,17 +94,17 @@ describe("Security: Auth & JWT", () => {
     });
 
     it("SEC-A-05: JWT with 'alg: none' attack → 401 (jsonwebtoken rejects)", async () => {
-        // Craft a none-algorithm token manually
+
         const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" })).toString("base64url");
         const payload = Buffer.from(JSON.stringify({ userId: "u1", organizationId: "org-1", role: UserRole.ADMIN })).toString("base64url");
-        const noneToken = `${header}.${payload}.`; // empty signature
+        const noneToken = `${header}.${payload}.`;
         const res = await app.inject({ method: "GET", url: "/api/projects", headers: { authorization: `Bearer ${noneToken}` } });
         expect(res.statusCode).toBe(401);
     });
 
     it("SEC-A-06: Missing 'Bearer ' prefix → 401", async () => {
         const token = signToken();
-        const res = await app.inject({ method: "GET", url: "/api/projects", headers: { authorization: token } }); // no "Bearer "
+        const res = await app.inject({ method: "GET", url: "/api/projects", headers: { authorization: token } });
         expect(res.statusCode).toBe(401);
     });
 
@@ -132,9 +129,7 @@ describe("Security: Auth & JWT", () => {
             method: "POST", url: "/api/auth/register",
             payload: { email: "a@b.com", password: "password1", name: "<script>alert(1)</script>", orgName: "Acme" },
         });
-        // API returns JSON — XSS is a browser concern, not a server concern. 201 is correct.
         expect(res.statusCode).toBe(201);
-        // Name should be in the response as a raw string (not HTML-encoded by the API)
         expect(res.json().user.name).toBe("<script>alert(1)</script>");
     });
 });

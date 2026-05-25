@@ -1,9 +1,7 @@
 import "reflect-metadata";
-// Unit tests: AuthController
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthController } from "../../src/controllers/AuthController";
 
-// Minimal Fastify-like request/reply stubs
 function makeReply() {
     const reply: any = { _code: 200, _body: undefined };
     reply.code = vi.fn((n: number) => { reply._code = n; return reply; });
@@ -27,8 +25,6 @@ describe("AuthController", () => {
         };
         ctrl = new AuthController(authService);
     });
-
-    // --- register ---
 
     it("U-AC-01: register — all fields present → calls service and returns 201", async () => {
         authService.register.mockResolvedValue({ token: "tok", user: { id: "u-1" }, organization: { id: "o-1" } });
@@ -71,8 +67,6 @@ describe("AuthController", () => {
         expect(reply.send).toHaveBeenCalledWith(expect.objectContaining({ error: "Email already in use" }));
     });
 
-    // --- login ---
-
     it("U-AC-05: login — valid credentials → calls service and returns 200", async () => {
         authService.login.mockResolvedValue({ token: "tok", user: { id: "u-1" } });
         const req = makeRequest({ email: "a@b.com", password: "pass1" });
@@ -104,8 +98,6 @@ describe("AuthController", () => {
         expect(reply.code).toHaveBeenCalledWith(401);
         expect(reply.send).toHaveBeenCalledWith(expect.objectContaining({ error: "Invalid credentials" }));
     });
-
-    // --- me ---
 
     it("U-AC-08: me — user found → returns 200 with user data", async () => {
         authService.getUserById.mockResolvedValue({ id: "u-1", email: "a@b.com" });

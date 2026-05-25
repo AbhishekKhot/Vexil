@@ -1,4 +1,3 @@
-// Unit tests: RuleEngine (U-RE-01..08)
 import { describe, it, expect } from "vitest";
 import { evaluateRules } from "../../src/utils/ruleEngine";
 

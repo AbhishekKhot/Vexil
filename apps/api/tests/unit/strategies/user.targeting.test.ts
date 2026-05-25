@@ -1,4 +1,3 @@
-// Unit tests: UserTargetingStrategy (U-ST-09..13)
 import { describe, it, expect } from "vitest";
 import { UserTargetingStrategy } from "../../../src/evaluation/strategies/UserTargetingStrategy";
 import { StrategyValidationError } from "../../../src/evaluation/EvaluationStrategy.interface";
@@ -80,9 +79,9 @@ describe("UserTargetingStrategy", () => {
             hashAttribute: "userId",
             fallthrough: true,
         });
-        const r = s.evaluate({ country: "US" }); // no userId
+        const r = s.evaluate({ country: "US" });
         expect(r.reason).toBe("MISSING_CONTEXT");
-        expect(r.value).toBe(true); // falls through to fallthrough value
+        expect(r.value).toBe(true);
     });
 
     it("U-ST-16: context has hashAttribute as empty string → MISSING_CONTEXT", () => {
@@ -92,7 +91,7 @@ describe("UserTargetingStrategy", () => {
             hashAttribute: "userId",
             fallthrough: false,
         });
-        const r = s.evaluate({ userId: "   " }); // whitespace-only string
+        const r = s.evaluate({ userId: "   " });
         expect(r.reason).toBe("MISSING_CONTEXT");
     });
 });

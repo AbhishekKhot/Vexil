@@ -1,4 +1,3 @@
-// Unit tests: PrerequisiteStrategy (U-ST-32..34)
 import { describe, it, expect, vi } from "vitest";
 import { PrerequisiteStrategy } from "../../../src/evaluation/strategies/PrerequisiteStrategy";
 

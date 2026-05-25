@@ -1,4 +1,3 @@
-// Unit tests: AuthService (U-A-01..12)
 import "reflect-metadata";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuthService } from "../../src/services/AuthService";
@@ -103,7 +102,6 @@ describe("AuthService.register()", () => {
 
         await service.register("a@b.com", "password1", "A", "My Org!");
 
-        // slug should be "my-org" (spaces → hyphens, special chars stripped)
         expect(orgRepo.create).toHaveBeenCalledWith(expect.objectContaining({ slug: "my-org" }));
     });
 
@@ -139,7 +137,7 @@ describe("AuthService.login()", () => {
 
         expect(result.token).toBe("jwt-8h");
         expect(result.user).not.toHaveProperty("passwordHash");
-        // Verify 8h expiry passed to jwt.sign
+
         expect(mockJwt.sign).toHaveBeenCalledWith(
             expect.any(Object),
             expect.any(String),

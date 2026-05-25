@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: SchedulerService (SS-1..10)
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SchedulerService } from "../../src/services/SchedulerService";
 
@@ -30,8 +30,6 @@ describe("SchedulerService", () => {
         vi.useRealTimers();
     });
 
-    // --- start() / stop() ---
-
     it("SS-1: start() — timer is non-null after first call", () => {
         configRepo.find.mockResolvedValue([]);
         svc.start();
@@ -57,8 +55,6 @@ describe("SchedulerService", () => {
         expect(() => svc.stop()).not.toThrow();
         expect((svc as any).timer).toBeNull();
     });
-
-    // --- checkScheduledChanges() ---
 
     it("SS-5: due config with scheduledConfig — applies isEnabled, strategyType, strategyConfig, clears scheduledAt and nullifies scheduledConfig", async () => {
         const config: any = {
@@ -95,8 +91,8 @@ describe("SchedulerService", () => {
 
         await (svc as any).checkScheduledChanges();
 
-        expect(config.isEnabled).toBe(false);      // unchanged
-        expect(config.strategyType).toBe("boolean"); // unchanged
+        expect(config.isEnabled).toBe(false);
+        expect(config.strategyType).toBe("boolean");
         expect(config.scheduledAt).toBeUndefined();
         expect(configRepo.save).toHaveBeenCalledTimes(1);
     });

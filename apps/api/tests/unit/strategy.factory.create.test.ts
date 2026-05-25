@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: StrategyFactory.create() — all strategy types instantiated
+
 import { describe, it, expect, vi } from "vitest";
 import { StrategyFactory } from "../../src/evaluation/StrategyFactory";
 import { StrategyValidationError } from "../../src/evaluation/EvaluationStrategy.interface";
@@ -47,7 +47,7 @@ describe("StrategyFactory.create()", () => {
             flagKey: "f",
         });
         expect(s.strategyType).toBe("targeted_rollout");
-        // Matching rule + 100% → TARGETED_IN
+
         expect(s.evaluate({ userId: "u1", plan: "pro" })).toMatchObject({ reason: "TARGETED_IN" });
     });
 
@@ -127,7 +127,7 @@ describe("StrategyFactory.create()", () => {
             strategyConfig: { strategyType: "prerequisite", flagKey: "dep-flag", expectedValue: true },
             isEnabled: true,
             flagKey: "f",
-            // no prerequisiteEvaluator
+
         })).toThrow(StrategyValidationError);
     });
 
@@ -186,8 +186,6 @@ describe("StrategyFactory.parse() — additional branches", () => {
         const result = StrategyFactory.parse({ strategyType: "boolean" });
         expect(result).toMatchObject({ strategyType: "boolean" });
     });
-
-    // Valid inputs for each type — cover the break paths at lines 61–70
 
     it("SF-P-12: valid user_targeting (userIds array present) → returns config without throwing", () => {
         const result = StrategyFactory.parse({ strategyType: "user_targeting", userIds: ["u1", "u2"], hashAttribute: "userId", fallthrough: false });

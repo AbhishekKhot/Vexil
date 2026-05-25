@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: EvaluationService
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EvaluationService } from "../../src/services/EvaluationService";
 
@@ -25,7 +25,7 @@ describe("EvaluationService", () => {
         environmentRepo = makeEnvironmentRepo();
         configRepo = makeConfigRepo();
         redis = makeRedis();
-        // Default: no cached data in Redis
+
         redis.get.mockResolvedValue(null);
         svc = new EvaluationService(
             environmentRepo as any,
@@ -36,7 +36,7 @@ describe("EvaluationService", () => {
 
     it("U-ES-01: evaluateFlags — invalid API key → throws 'Invalid API Key'", async () => {
         environmentRepo.findOne.mockResolvedValue(null);
-        redis.get.mockResolvedValue(null); // no env cache
+        redis.get.mockResolvedValue(null);
 
         await expect(svc.evaluateFlags("bad-key")).rejects.toThrow("Invalid API Key");
     });
@@ -44,7 +44,7 @@ describe("EvaluationService", () => {
     it("U-ES-02: evaluateFlags — valid API key, no configs → returns empty flags object", async () => {
         const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
         environmentRepo.findOne.mockResolvedValue(env);
-        configRepo.find.mockResolvedValue([]); // no flag configs
+        configRepo.find.mockResolvedValue([]);
 
         const result = await svc.evaluateFlags("vex_abc", { userId: "u-1" });
 
@@ -54,7 +54,7 @@ describe("EvaluationService", () => {
     it("U-ES-03: evaluateFlags — configs from DB cached into Redis for 30s", async () => {
         const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
         environmentRepo.findOne.mockResolvedValue(env);
-        redis.get.mockResolvedValueOnce(null).mockResolvedValueOnce(null); // first call: no env cache, no config cache
+        redis.get.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
         configRepo.find.mockResolvedValue([]);
 
         await svc.evaluateFlags("vex_abc");
@@ -68,26 +68,25 @@ describe("EvaluationService", () => {
     });
 
     it("U-ES-04: evaluateFlags — config cache hit → skips DB configRepo.find", async () => {
-        // First call: cache the env but not configs
+
         const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
         environmentRepo.findOne.mockResolvedValue(env);
-        // Redis returns null for env_apikey, then returns cached configs on second get
+
         redis.get
-            .mockResolvedValueOnce(null)          // env_apikey: miss
-            .mockResolvedValueOnce(JSON.stringify([])); // env_configs: hit
+            .mockResolvedValueOnce(null)
+            .mockResolvedValueOnce(JSON.stringify([]));
 
         await svc.evaluateFlags("vex_abc");
 
-        // configRepo.find should NOT have been called because configs came from cache
         expect(configRepo.find).not.toHaveBeenCalled();
     });
 
     it("U-ES-05: evaluateFlags — env resolved from apiKey cache → skips environmentRepo.findOne", async () => {
         const env = { id: "env-1", apiKey: "vex_abc", project: { id: "p-1" } };
-        // Both env and configs in cache
+
         redis.get
-            .mockResolvedValueOnce(JSON.stringify(env)) // env_apikey: hit
-            .mockResolvedValueOnce(JSON.stringify([]));  // env_configs: hit
+            .mockResolvedValueOnce(JSON.stringify(env))
+            .mockResolvedValueOnce(JSON.stringify([]));
 
         await svc.evaluateFlags("vex_abc");
 

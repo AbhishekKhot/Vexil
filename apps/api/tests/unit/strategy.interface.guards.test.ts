@@ -1,4 +1,3 @@
-// Unit tests: EvaluationStrategy interface guard helpers (SI-1..11)
 import { describe, it, expect } from "vitest";
 import {
     assertPercentage,

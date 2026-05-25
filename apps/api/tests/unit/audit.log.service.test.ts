@@ -1,4 +1,3 @@
-// Unit tests: AuditLogService (U-AL-01..06)
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AuditLogService } from "../../src/services/AuditLogService";
 
@@ -44,7 +43,7 @@ describe("AuditLogService", () => {
 
         await svc.getLogs("proj-1");
 
-        expect(qb.skip).toHaveBeenCalledWith(0); // (page 1 - 1) * 20
+        expect(qb.skip).toHaveBeenCalledWith(0);
         expect(qb.take).toHaveBeenCalledWith(20);
     });
 
@@ -61,7 +60,7 @@ describe("AuditLogService", () => {
 
         await svc.getLogs("proj-1", { limit: 200 });
 
-        expect(qb.take).toHaveBeenCalledWith(100); // capped
+        expect(qb.take).toHaveBeenCalledWith(100);
     });
 
     it("U-AL-04: getLogs() — entityType filter applied", async () => {

@@ -1,10 +1,3 @@
-/**
- * L-03: Dashboard simulation — CRUD flags + configs
- * Pass criteria: p95 < 300ms
- *
- * Run: k6 run tests/load/L-03-control-plane.js
- * Requires: VEXIL_JWT, PROJECT_ID env vars
- */
 import http from "k6/http";
 import { sleep, check } from "k6";
 import { Trend, Counter } from "k6/metrics";
@@ -39,7 +32,6 @@ const HEADERS = {
 export default function () {
   const flagKey = `load-flag-${__VU}-${__ITER}-${Date.now()}`;
 
-  // 1. Create flag
   const createRes = http.post(
     `${BASE_URL}/api/projects/${PROJECT_ID}/flags`,
     JSON.stringify({
@@ -61,7 +53,6 @@ export default function () {
     return;
   }
 
-  // 2. List flags
   const listRes = http.get(`${BASE_URL}/api/projects/${PROJECT_ID}/flags`, {
     headers: HEADERS,
   });
@@ -70,7 +61,6 @@ export default function () {
 
   sleep(0.5);
 
-  // 3. Delete flag (cleanup)
   const deleteRes = http.del(
     `${BASE_URL}/api/projects/${PROJECT_ID}/flags/${flagId}`,
     null,

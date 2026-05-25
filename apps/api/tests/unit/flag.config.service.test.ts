@@ -1,4 +1,3 @@
-// Unit tests: FlagConfigService (U-FC-01..08)
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FlagConfigService } from "../../src/services/FlagConfigService";
 
@@ -38,7 +37,7 @@ describe("FlagConfigService", () => {
     });
 
     it("U-FC-02: setFlagConfig — no existing config → calls create + save", async () => {
-        configRepo.findOne.mockResolvedValue(null); // no existing
+        configRepo.findOne.mockResolvedValue(null);
         const newCfg = { id: "cfg-new", isEnabled: true, strategyType: "boolean" };
         configRepo.create.mockReturnValue(newCfg);
         configRepo.save.mockResolvedValue(newCfg);
@@ -63,15 +62,13 @@ describe("FlagConfigService", () => {
     it("U-FC-04: setFlagConfig — invalid strategyType → StrategyValidationError, redis NOT called", async () => {
         configRepo.findOne.mockResolvedValue(null);
 
-        // StrategyFactory.parse() throws when required field is missing entirely
-        // rollout requires 'percentage' to be a number — passing non-number triggers the error
         await expect(
             svc.setFlagConfig({
                 flag: mockFlag,
                 environment: mockEnv,
                 isEnabled: true,
                 strategyType: "rollout",
-                strategyConfig: { percentage: "not-a-number" as any }, // parse() throws: percentage must be a number
+                strategyConfig: { percentage: "not-a-number" as any },
             })
         ).rejects.toThrow();
 
@@ -98,7 +95,7 @@ describe("FlagConfigService", () => {
 
         await expect(
             svc.setFlagConfig({ flag: mockFlag, environment: mockEnv, isEnabled: true, strategyType: "boolean" })
-        ).resolves.toBeDefined(); // should not throw
+        ).resolves.toBeDefined();
     });
 
     it("U-FC-07: setFlagConfig — strategyType stripped from strategyConfig JSONB column", async () => {
@@ -115,7 +112,7 @@ describe("FlagConfigService", () => {
         });
 
         const savedArg = configRepo.save.mock.calls[0][0];
-        // strategyType should NOT be in strategyConfig JSONB
+
         expect(savedArg.strategyConfig).not.toHaveProperty("strategyType");
         expect(savedArg.strategyConfig).toHaveProperty("percentage", 50);
     });
@@ -168,12 +165,11 @@ describe("FlagConfigService", () => {
         configRepo.findOne.mockResolvedValue(existing);
         configRepo.save.mockImplementation(async (cfg: any) => cfg);
 
-        // scheduledAt not provided → undefined → schedule block skipped
         await svc.setFlagConfig({ flag: mockFlag, environment: mockEnv, isEnabled: false });
 
         const saved = configRepo.save.mock.calls[0][0];
-        expect(saved.scheduledAt).toEqual(existingScheduledAt); // unchanged
-        expect(saved.scheduledConfig).toEqual(existingScheduledConfig); // unchanged
+        expect(saved.scheduledAt).toEqual(existingScheduledAt);
+        expect(saved.scheduledConfig).toEqual(existingScheduledConfig);
     });
 
     it("U-FC-08: setFlagConfig — scheduledAt set → saved as Date object", async () => {

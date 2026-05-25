@@ -12,7 +12,6 @@ export interface SafeOrg { id: string; name: string; slug: string }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LEN = 8;
-// M6: 8h expiry — shorter window limits damage from a stolen token.
 const JWT_EXPIRY = "8h";
 
 export class AuthService {
@@ -26,7 +25,6 @@ export class AuthService {
      * Returns the token so the frontend can authenticate immediately without a separate login call.
      */
     async register(email: string, password: string, name: string, orgName: string) {
-        // M3: Validate email format and minimum password length.
         if (!EMAIL_RE.test(email)) throw new Error("Invalid email address.");
         if (password.length < MIN_PASSWORD_LEN) throw new Error(`Password must be at least ${MIN_PASSWORD_LEN} characters.`);
 
@@ -35,7 +33,6 @@ export class AuthService {
         const passwordHash = await bcrypt.hash(password, 10);
         const user = await this.userRepo.save(this.userRepo.create({ email, passwordHash, name, organizationId: organization.id, role: UserRole.ADMIN }));
         const token = jwt.sign({ userId: user.id, email: user.email, organizationId: organization.id, role: user.role } as AuthPayload, this.jwtSecret, { expiresIn: JWT_EXPIRY });
-        // M2: Return only safe fields — never include passwordHash.
         return { token, user: this.toSafeUser(user), organization: this.toSafeOrg(organization) };
     }
 
@@ -49,14 +46,12 @@ export class AuthService {
         const isValid = await bcrypt.compare(password, user.passwordHash);
         if (!isValid) throw new Error("Invalid credentials");
         const token = jwt.sign({ userId: user.id, email: user.email, organizationId: user.organizationId, role: user.role } as AuthPayload, this.jwtSecret, { expiresIn: JWT_EXPIRY });
-        // M2: Return only safe fields.
         return { token, user: this.toSafeUser(user), organization: this.toSafeOrg(user.organization) };
     }
 
     async getUserById(id: string): Promise<{ user: SafeUser; organization: SafeOrg } | null> {
         const user = await this.userRepo.findOne({ where: { id }, relations: ["organization"] });
         if (!user) return null;
-        // M2: Explicit projection — never return the raw entity which could contain passwordHash.
         return { user: this.toSafeUser(user), organization: this.toSafeOrg(user.organization) };
     }
 

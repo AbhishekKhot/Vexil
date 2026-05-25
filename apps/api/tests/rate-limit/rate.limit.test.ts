@@ -1,19 +1,16 @@
 import "reflect-metadata";
-// Rate-limit tests (RL-01..12)
-// Uses Fastify inject() with an in-memory rate-limit store (no real Redis needed).
 import { describe, it, expect, vi, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import rateLimit from "@fastify/rate-limit";
 import * as jwt from "jsonwebtoken";
 import { TEST_JWT_SECRET, signToken } from "../helpers/buildTestApp";
 
-// Build a token-bucket throttle with explicit capacity (does not read env vars)
 function makeBucketThrottle(capacity: number, refillRateMs: number) {
     const buckets = new Map<string, { tokens: number; lastRefill: number }>();
 
     return async function throttle(request: any, reply: any): Promise<void> {
         const auth = request.headers.authorization as string | undefined;
-        if (!auth ?.startsWith("Bearer ")) return;
+        if (!auth?.startsWith("Bearer ")) return;
         const apiKey = auth.slice(7).trim();
         const now = Date.now();
         const bucket = buckets.get(apiKey);
@@ -64,7 +61,7 @@ async function buildApp(options: {
         global: false,
         keyGenerator: (req) => {
             const auth = req.headers.authorization;
-            if (auth ?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`;
+            if (auth?.startsWith("Bearer vex_")) return `rl:${auth.slice(7, 23)}`;
             return `rl:${req.ip ?? "127.0.0.1"}`;
         },
         errorResponseBuilder: () => ({
@@ -75,7 +72,7 @@ async function buildApp(options: {
 
     app.decorate("authenticate", async (req: any, reply: any) => {
         const auth = req.headers.authorization;
-        if (!auth ?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
+        if (!auth?.startsWith("Bearer ")) return reply.code(401).send({ error: "Unauthorized" });
         try {
             const payload = jwt.verify(auth.slice(7), TEST_JWT_SECRET) as any;
             req.user = { id: payload.userId, email: payload.email, organizationId: payload.organizationId, role: "ADMIN" };
@@ -84,14 +81,11 @@ async function buildApp(options: {
 
     const throttle = makeBucketThrottle(bucketCapacity, bucketRefillMs);
 
-    // Auth routes
     app.post("/api/auth/register", { config: { rateLimit: { max: options.registerLimit ?? 5, timeWindow: "1d" } } }, async (_req, reply) => reply.code(201).send({ token: "t" }));
     app.post("/api/auth/login", { config: { rateLimit: { max: options.loginLimit ?? 10, timeWindow: "15m" } } }, async (_req, reply) => reply.code(200).send({ token: "t" }));
 
-    // Data plane
     app.post("/v1/flags/evaluate", { config: { rateLimit: { max: options.evalLimit ?? 100, timeWindow: "1d" } }, preHandler: [throttle] }, async (_req, reply) => reply.code(200).send({ flags: {} }));
 
-    // Control plane
     app.post("/api/projects", { config: { rateLimit: { max: options.controlWriteLimit ?? 50, timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(201).send({ id: "p-1" }));
     app.get("/api/projects", { config: { rateLimit: { max: options.controlReadLimit ?? 200, timeWindow: "1d" } }, preHandler: [(app as any).authenticate] }, async (_req, reply) => reply.code(200).send([]));
 
@@ -136,7 +130,7 @@ describe("Rate Limit Tests", () => {
     });
 
     it("RL-04: POST /v1/flags/evaluate — 101st request → 429 (eval limit=100, large bucket so bucket doesn't throttle first)", async () => {
-        // Use very large bucket capacity so the @fastify/rate-limit (100/day) fires first
+
         app = await buildApp({ evalLimit: 100, evalBucketCapacity: 10000, evalRefillRateMs: 1 });
         const results = await hitN(app, 101, { method: "POST", url: "/v1/flags/evaluate", headers: { authorization: "Bearer vex_ratelimitk001" }, payload: {} });
         expect(results.slice(0, 100).every(s => s === 200)).toBe(true);
@@ -174,11 +168,9 @@ describe("Rate Limit Tests", () => {
     it("RL-09: Token bucket — different API keys are independent (A throttled, B not)", async () => {
         app = await buildApp({ evalBucketCapacity: 1, evalRefillRateMs: 60_000, evalLimit: 10000 });
 
-        // Exhaust key A (2 requests with capacity=1, so 2nd is throttled)
         await app.inject({ method: "POST", url: "/v1/flags/evaluate", headers: { authorization: "Bearer vex_keyAAAAAAA00" }, payload: {} });
         const throttledA = await app.inject({ method: "POST", url: "/v1/flags/evaluate", headers: { authorization: "Bearer vex_keyAAAAAAA00" }, payload: {} });
 
-        // Key B should still be fresh
         const okB = await app.inject({ method: "POST", url: "/v1/flags/evaluate", headers: { authorization: "Bearer vex_keyBBBBBBB00" }, payload: {} });
 
         expect(throttledA.statusCode).toBe(429);
@@ -186,8 +178,7 @@ describe("Rate Limit Tests", () => {
     });
 
     it("RL-10: Token bucket — after refill window passes → request succeeds", { timeout: 15000 }, async () => {
-        // Build a standalone bucket directly (no Fastify overhead, just the bucket logic)
-        // This verifies the token refill math without needing to spin up a full app
+
         const capacity = 1;
         const refillRateMs = 1000;
         const buckets = new Map<string, { tokens: number; lastRefill: number }>();
@@ -210,10 +201,10 @@ describe("Rate Limit Tests", () => {
         }
 
         const t0 = Date.now();
-        expect(simulateRequest("key-x", t0)).toBe(200);        // 1st: ok
-        expect(simulateRequest("key-x", t0 + 10)).toBe(429);   // 2nd: exhausted
-        // After 2s (> 1 refill period), tokens refill
-        expect(simulateRequest("key-x", t0 + 2100)).toBe(200); // 3rd: refilled
+        expect(simulateRequest("key-x", t0)).toBe(200);
+        expect(simulateRequest("key-x", t0 + 10)).toBe(429);
+
+        expect(simulateRequest("key-x", t0 + 2100)).toBe(200);
     });
 
     it("RL-11: 429 response includes error field with human-readable message", async () => {

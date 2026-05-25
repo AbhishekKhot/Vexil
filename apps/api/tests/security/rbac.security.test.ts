@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Security tests: RBAC (SEC-R-01..10)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -40,11 +39,9 @@ async function buildApp() {
     const adminOnly = requireRole([UserRole.ADMIN]);
     const adminOrMember = requireRole([UserRole.ADMIN, UserRole.MEMBER]);
 
-    // Projects
     app.post("/api/projects", { preHandler: [adminOrMember] }, async (_req: any, reply) => reply.code(201).send(mockServices.createProject()));
     app.delete("/api/projects/:id", { preHandler: [adminOnly] }, async (_req: any, reply) => reply.code(204).send());
 
-    // Flags
     app.post("/api/projects/:projectId/flags", { preHandler: [adminOrMember] }, async (_req: any, reply) => {
         mockServices.getProject();
         return reply.code(201).send(mockServices.createFlag());
@@ -56,10 +53,8 @@ async function buildApp() {
         return reply.code(204).send();
     });
 
-    // Flag config
     app.put("/api/projects/:projectId/environments/:environmentId/flags/:flagId", { preHandler: [adminOrMember] }, async (_req: any, reply) => reply.code(200).send(mockServices.setFlagConfig()));
 
-    // Environments
     app.post("/api/projects/:projectId/environments", { preHandler: [adminOrMember] }, async (_req: any, reply) => reply.code(201).send(mockServices.createEnvironment()));
     app.post("/api/projects/:projectId/environments/:envId/rotate-key", { preHandler: [adminOnly] }, async (_req: any, reply) => reply.code(200).send({ apiKey: "vex_new" }));
     app.delete("/api/projects/:projectId/environments/:id", { preHandler: [adminOnly] }, async (_req: any, reply) => reply.code(204).send());

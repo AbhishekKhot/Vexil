@@ -1,4 +1,3 @@
-// Unit tests: RolloutStrategy (U-ST-04..08)
 import { describe, it, expect } from "vitest";
 import { RolloutStrategy } from "../../../src/evaluation/strategies/RolloutStrategy";
 import { StrategyValidationError } from "../../../src/evaluation/EvaluationStrategy.interface";
@@ -40,7 +39,7 @@ describe("RolloutStrategy", () => {
 
     it("U-ST-08: hashAttribute field not present in context → MISSING_CONTEXT reason", () => {
         const s = new RolloutStrategy({ strategyType: "rollout", percentage: 50, hashAttribute: "userId" }, "flag-k");
-        const r = s.evaluate({ plan: "pro" }); // no userId
+        const r = s.evaluate({ plan: "pro" });
         expect(r.value).toBe(false);
         expect(r.reason).toBe("MISSING_CONTEXT");
     });

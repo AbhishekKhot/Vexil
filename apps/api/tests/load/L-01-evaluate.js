@@ -1,10 +1,3 @@
-/**
- * L-01: Constant SDK polling — 10 VUs call /v1/flags/evaluate every 30s
- * Pass criteria: p95 < 200ms, 0 errors (non-429)
- *
- * Run: k6 run tests/load/L-01-evaluate.js
- * Requires: VEXIL_API_KEY env var (export VEXIL_API_KEY=vex_xxx)
- */
 import http from "k6/http";
 import { sleep, check } from "k6";
 import { Trend, Counter } from "k6/metrics";
@@ -63,6 +56,5 @@ export default function () {
     console.error(`VU ${__VU} iter ${__ITER}: unexpected status ${res.status}`);
   }
 
-  // Simulate SDK polling interval (30s). In k6 we sleep to pace requests.
   sleep(30);
 }

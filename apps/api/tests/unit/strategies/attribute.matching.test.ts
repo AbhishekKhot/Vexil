@@ -1,4 +1,3 @@
-// Unit tests: AttributeMatchingStrategy (U-ST-19..25)
 import { describe, it, expect } from "vitest";
 import { AttributeMatchingStrategy } from "../../../src/evaluation/strategies/AttributeMatchingStrategy";
 import { StrategyValidationError } from "../../../src/evaluation/EvaluationStrategy.interface";

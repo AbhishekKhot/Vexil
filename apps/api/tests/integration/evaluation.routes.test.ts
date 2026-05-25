@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Integration tests: Evaluation route (I-EV-01..10)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import { TEST_JWT_SECRET } from "../helpers/buildTestApp";
@@ -18,7 +17,7 @@ function makeFakeRedis(tokens = 10) {
     let currentTokens = tokens;
     return {
         get: vi.fn().mockImplementation(async () => {
-            if (currentTokens > 0) return null; // triggers fresh bucket
+            if (currentTokens > 0) return null;
             return JSON.stringify({ tokens: -1, lastRefill: Date.now() });
         }),
         set: vi.fn().mockImplementation(async (_k: any, val: any) => {
@@ -118,7 +117,6 @@ describe("Integration: Evaluation Routes", () => {
     });
 
     it("I-EV-07: token bucket exhausted → 429 with Retry-After header", async () => {
-        // Build app with exhausted bucket
         await app.close();
         const exhaustedRedis = {
             get: vi.fn().mockResolvedValue(JSON.stringify({ tokens: -1, lastRefill: Date.now() })),
@@ -155,7 +153,6 @@ describe("Integration: Evaluation Routes", () => {
 
     it("I-EV-10: different API keys → independent buckets (both can pass)", async () => {
         await app.close();
-        // Fresh redis with no exhaustion
         const freshRedis = {
             get: vi.fn().mockResolvedValue(null),
             set: vi.fn().mockResolvedValue("OK"),

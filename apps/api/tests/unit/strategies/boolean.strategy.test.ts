@@ -1,4 +1,3 @@
-// Unit tests: BooleanStrategy (U-ST-01..03)
 import { describe, it, expect } from "vitest";
 import { BooleanStrategy } from "../../../src/evaluation/strategies/BooleanStrategy";
 import { StrategyValidationError } from "../../../src/evaluation/EvaluationStrategy.interface";

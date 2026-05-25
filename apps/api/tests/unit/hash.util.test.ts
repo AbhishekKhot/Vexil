@@ -1,4 +1,3 @@
-// Unit tests: hash.util (U-H-01..06)
 import { describe, it, expect } from "vitest";
 import { computeBucket, isInRollout } from "../../src/evaluation/hash.util";
 

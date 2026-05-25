@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Integration tests: Audit Log routes (I-AL-01..08)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -64,7 +63,6 @@ describe("Integration: Audit Log Routes", () => {
         mockAuditLogService.getLogs.mockResolvedValue({ items: [], total: 0, page: 1, limit: 100 });
         const res = await app.inject({ method: "GET", url: "/api/projects/p-1/audit-logs?limit=200", headers: { authorization: `Bearer ${signToken()}` } });
         expect(res.statusCode).toBe(200);
-        // The controller caps limit to 100 before passing to service
         expect(mockAuditLogService.getLogs).toHaveBeenCalledWith(
             "p-1",
             expect.objectContaining({ limit: 100 })
@@ -88,7 +86,7 @@ describe("Integration: Audit Log Routes", () => {
     });
 
     it("I-AL-06: GET /:id — log from different project → 404 (org boundary)", async () => {
-        mockAuditLogService.getLogById.mockResolvedValue(null); // service returns null for wrong project
+        mockAuditLogService.getLogById.mockResolvedValue(null);
         const res = await app.inject({ method: "GET", url: "/api/projects/p-1/audit-logs/log-other", headers: { authorization: `Bearer ${signToken()}` } });
         expect(res.statusCode).toBe(404);
     });

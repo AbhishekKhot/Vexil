@@ -1,11 +1,3 @@
-/**
- * Shared helper for integration tests.
- * Builds a minimal Fastify instance with:
- *  - fake DataSource (stubbed ORM)
- *  - fake Redis (in-memory, always succeeds)
- *  - fastify.authenticate hook that reads a pre-signed JWT from Authorization header
- *  - NO real DB or Redis connections
- */
 import Fastify, { FastifyInstance } from "fastify";
 import { vi } from "vitest";
 import * as jwt from "jsonwebtoken";
@@ -15,7 +7,6 @@ export const TEST_JWT_SECRET = "test-secret-at-least-32-chars-long!!";
 export const TEST_ORG_ID = "org-test-1";
 export const TEST_USER_ID = "user-test-1";
 
-/** Sign a test JWT for a given role / org. */
 export function signToken(payload: { userId?: string; email?: string; organizationId?: string; role?: UserRole } = {}) {
     return jwt.sign(
         {
@@ -29,7 +20,6 @@ export function signToken(payload: { userId?: string; email?: string; organizati
     );
 }
 
-/** Builds a minimal test app with stubbed DB + Redis. */
 export async function buildTestApp(
     registerRoutes: (app: FastifyInstance, fakeOrm: any) => Promise<void>
 ): Promise<FastifyInstance> {
@@ -58,11 +48,9 @@ export async function buildTestApp(
 
     const app = Fastify({ logger: false });
 
-    // Decorate with fakeOrm + fakeRedis so routes can call fastify.orm / fastify.redis
     app.decorate("orm", fakeOrm);
     app.decorate("redis", fakeRedis);
 
-    // Minimal authenticate hook: verifies JWT, sets request.user
     app.decorate("authenticate", async (request: any, reply: any) => {
         const auth = request.headers.authorization;
         if (!auth ?.startsWith("Bearer ")) {

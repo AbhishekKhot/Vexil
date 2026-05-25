@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Integration tests: Flag Config routes (I-FC-01..08)
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";

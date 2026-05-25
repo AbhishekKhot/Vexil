@@ -1,5 +1,4 @@
 import "reflect-metadata";
-// Unit tests: authMiddleware (JWT decode + attach user)
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import Fastify, { FastifyInstance } from "fastify";
 import * as jwt from "jsonwebtoken";
@@ -87,17 +86,9 @@ describe("authMiddleware", () => {
 
     it("U-AM-08: Authorization header without 'Bearer ' prefix → 401", async () => {
         const token = signToken();
-        // Send raw token without "Bearer " prefix — the middleware replaces "Bearer " with ""
-        // but jwt.verify will fail because the header/payload/signature format is intact but
-        // the replace logic strips the literal text "Bearer " from the string; if "Bearer " is absent
-        // the entire authorization header value is passed to jwt.verify as-is.
-        // Since the header value IS a valid token, this depends on the middleware's guard.
-        // The production middleware only checks !authHeader (undefined/null), not the Bearer prefix.
-        // So a token sent without "Bearer " prefix will be passed through to jwt.verify and succeed.
-        // This test documents the actual behavior: middleware accepts any non-empty authHeader.
+
         const res = await app.inject({ method: "GET", url: "/protected", headers: { authorization: token } });
-        // The middleware does: token = authHeader.replace("Bearer ", "") which is a no-op,
-        // then jwt.verify(token, secret) — this succeeds because the token itself is valid.
+
         expect(res.statusCode).toBe(200);
     });
 });

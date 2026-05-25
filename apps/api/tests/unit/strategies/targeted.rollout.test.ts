@@ -1,4 +1,3 @@
-// Unit tests: TargetedRolloutStrategy (U-ST-26..28)
 import { describe, it, expect } from "vitest";
 import { TargetedRolloutStrategy } from "../../../src/evaluation/strategies/TargetedRolloutStrategy";
 
@@ -10,7 +9,6 @@ describe("TargetedRolloutStrategy", () => {
             { strategyType: "targeted_rollout", percentage: 100, hashAttribute: "userId", rules: proUsRule },
             "flag-k"
         );
-        // user on 'free' plan fails the rule — should not enter rollout even at 100%
         const r = s.evaluate({ userId: "alice", plan: "free" });
         expect(r.value).toBe(false);
         expect(r.reason).toBe("TARGETED_OUT");
@@ -44,7 +42,6 @@ describe("TargetedRolloutStrategy", () => {
             { strategyType: "targeted_rollout", percentage: 100, hashAttribute: "userId", rules: proUsRule },
             "flag-k"
         );
-        // plan matches rule but userId is absent
         const r = s.evaluate({ plan: "pro" });
         expect(r.value).toBe(false);
         expect(r.reason).toBe("MISSING_CONTEXT");

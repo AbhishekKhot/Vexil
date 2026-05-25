@@ -1,5 +1,5 @@
 import "reflect-metadata";
-// Unit tests: FlagService
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FlagService } from "../../src/services/FlagService";
 
@@ -20,8 +20,6 @@ describe("FlagService", () => {
         flagRepo = makeFlagRepo();
         svc = new FlagService(flagRepo as any);
     });
-
-    // --- createFlag ---
 
     it("U-FLAG-01: createFlag — valid key/type → saves and returns flag", async () => {
         const project = { id: "p-1" } as any;
@@ -58,12 +56,9 @@ describe("FlagService", () => {
     });
 
     it("U-FLAG-07: createFlag — key with leading/trailing spaces fails regex (spaces not allowed)", async () => {
-        // The service calls trim() for the length check but runs regex on the raw key before trimming.
-        // Spaces are not in [a-z0-9-], so a key with spaces should throw.
+
         await expect(svc.createFlag({ id: "p-1" } as any, "  my-flag  ")).rejects.toThrow("lowercase letters");
     });
-
-    // --- listFlags ---
 
     it("U-FLAG-08: listFlags — returns array scoped to projectId", async () => {
         flagRepo.find.mockResolvedValue([{ id: "f-1" }, { id: "f-2" }]);
@@ -71,8 +66,6 @@ describe("FlagService", () => {
         expect(result).toHaveLength(2);
         expect(flagRepo.find).toHaveBeenCalledWith({ where: { project: { id: "p-1" } } });
     });
-
-    // --- getFlag ---
 
     it("U-FLAG-09: getFlag — existing id → returns flag with project relation", async () => {
         flagRepo.findOne.mockResolvedValue({ id: "f-1", project: { id: "p-1" } });
@@ -85,8 +78,6 @@ describe("FlagService", () => {
         flagRepo.findOne.mockResolvedValue(null);
         expect(await svc.getFlag("missing")).toBeNull();
     });
-
-    // --- updateFlag ---
 
     it("U-FLAG-11: updateFlag — updates description and type", async () => {
         const flag = { id: "f-1", key: "flag", type: "boolean", description: "old", project: { id: "p-1" } };
@@ -108,8 +99,6 @@ describe("FlagService", () => {
         flagRepo.findOne.mockResolvedValue({ id: "f-1", project: {} });
         await expect(svc.updateFlag("f-1", { type: "xml" })).rejects.toThrow("Invalid type");
     });
-
-    // --- deleteFlag ---
 
     it("U-FLAG-14: deleteFlag — affected > 0 → returns true", async () => {
         flagRepo.delete.mockResolvedValue({ affected: 1 });
